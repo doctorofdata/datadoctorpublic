@@ -1,0 +1,9 @@
+.container {
+  display: flex;
+}
+
+.column {
+  flex: 1; /* This makes both columns take up equal available space */
+  padding: 16px; /* Optional: Add some padding for visual separation */
+  /*border: 1px solid #ccc; /* Optional: Add a border to visualize columns */
+}
