@@ -11,6 +11,11 @@ import requests
 import json
 import xml.etree.ElementTree as ET
 import re
+import ast
+
+with open('/Users/anon/Documents/school/Code/frontendv2/src/credentials.txt') as f:
+
+    credentials = ast.literal_eval(f.read())
 
 def strip_html_tags(text):
     """Remove html tags from a string."""
@@ -26,7 +31,7 @@ dt = today.strftime('%Y-%m-%d')
 # Calculate the date 18 months ago
 eighteen_months_ago = today - relativedelta(months = 18)
 
-genai.configure(api_key = 'AIzaSyBmjza8QQUlOhGQI5uvaWW3vN-5kAoaFRk')
+genai.configure(api_key = credentials['gemini_api_key'])
 gemini = genai.GenerativeModel('gemini-2.5-flash')
 
 # Init app
@@ -190,45 +195,37 @@ def ask_model():
 
 @app.route('/quote', methods=['GET'])
 def get_quote():
-
-    symbol = request.args.get('symbol')
-
-    if not symbol:
-
-        return jsonify({'status': 'error', 'message': 'No symbol provided'}), 400
     
-    url = f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=2d&interval=1d'
+    tickers_param = request.args.get('tickers')
+    if not tickers_param:
+        return jsonify({'status': 'error', 'message': 'No tickers provided'}), 400
 
-    try:
+    tickers = [t.strip().upper() for t in tickers_param.split(',') if t.strip()]
+    results = []
 
-        r = requests.get(url, timeout = 8)
-
-        if r.status_code != 200:
-
-            print(f"[Yahoo Error] Status code: {r.status_code}, Body: {r.text[:500]}")
-            return jsonify({'status': 'error', 'message': f'Yahoo returned {r.status_code}', 'body': r.text}), 502
-        
+    for ticker in tickers:
         try:
+            t = yf.Ticker(ticker)
+            data = t.history(period="2d")
+            print(f"DEBUG: Ticker {ticker} data:\n{data}\n")  # Debug info in your Flask console
+            if data.empty or 'Close' not in data or data['Close'].isnull().all():
+                results.append({'ticker': ticker, 'error': 'No data found'})
+                continue
+            closes = data['Close'].dropna()
+            last = closes.iloc[-1]
+            prev = closes.iloc[-2] if len(closes) > 1 else last
+            change = last - prev
+            percent = (change / prev) * 100 if prev else 0
+            results.append({
+                'ticker': ticker,
+                'price': float(last),
+                'change': float(change),
+                'percent': float(percent)
+            })
+        except Exception as e:
+            results.append({'ticker': ticker, 'error': str(e)})
 
-            data = r.json()
-        
-        except Exception as json_err:
-        
-            print(f"[JSON Error] Could not decode Yahoo response for {symbol}: {json_err}, Body: {r.text[:500]}")
-            return jsonify({'status': 'error', 'message': 'Could not decode Yahoo response'}), 500
-        
-        if data.get("chart", {}).get("error"):
-        
-            desc = data["chart"]["error"].get("description", "Unknown error from Yahoo")
-            print(f"[Yahoo API Error] {desc}")
-            return jsonify({'status': 'error', 'message': desc}), 404
-        
-        return jsonify(data)
-    
-    except Exception as e:
-    
-        print(f"[Server Error] Exception for {symbol}: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'success', 'results': results})
     
 # Add a test endpoint
 @app.route('/health', methods = ['GET'])
