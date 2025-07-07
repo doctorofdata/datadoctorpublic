@@ -9,7 +9,7 @@ export async function callConversations(conversationId) {
     }
 
     const data = await API.post(
-        'frontendApi',
+        'theDataDojo',
         '/v1/conversations',
         requestData)
 

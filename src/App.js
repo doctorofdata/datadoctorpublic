@@ -11,6 +11,7 @@ import RagView from './pages/RagView';
 import Text2CypherView from './pages/Text2Cypher';
 import HomePage from './pages/Home';
 import Blog from './pages/Blog';
+import FinanceView from './pages/FinanceView'
 
 const config = {
     API: {
@@ -57,6 +58,7 @@ let theme = createTheme({
 theme = responsiveFontSizes(theme);
 
 function App() {
+
     return (
         <ThemeProvider theme = {theme}>
             <div className = "App">
@@ -67,6 +69,7 @@ function App() {
                             <Route path = '/' element = {<HomePage />} />
                             <Route path = '/finetunedmodel' element = {<Text2CypherView />} />
                             <Route path = '/nytimesmodel' element = {<RagView />} />
+                            <Route path = '/financemodel' element = {<FinanceView/>} />
                             <Route path = '/blog' element = {<Blog />} />
                         </Routes>
                     </BrowserRouter>

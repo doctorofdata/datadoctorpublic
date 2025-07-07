@@ -18,14 +18,18 @@ import HomeIcon from '@mui/icons-material/Home';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import { MdOutlineSettingsInputComposite } from "react-icons/md";
 import { PiPipeWrenchFill } from "react-icons/pi";
-import { FaBloggerB, FaInstagram, FaGithub } from "react-icons/fa";
+import { FaBloggerB, 
+         FaInstagram, 
+         FaGithub,
+         FaMoneyBill } from "react-icons/fa";
 
 import { AppContext } from 'Context';
 
 const pages = [
     { text: 'About', icon: <AccountBalanceIcon />, where: '/' },
-    { text: 'Fine-Tuned Model', icon: <MdOutlineSettingsInputComposite />, where: '/finetunedmodel' },
-    { text: 'RAG Model w/ NYT', icon: <PiPipeWrenchFill />, where: '/nytimesmodel' },
+    { text: 'Fine-Tuning', icon: <MdOutlineSettingsInputComposite />, where: '/finetunedmodel' },
+    { text: 'RAG w/ NYT', icon: <PiPipeWrenchFill />, where: '/nytimesmodel' },
+    { text: 'Financial Insights', icon: <FaMoneyBill />, where: '/financemodel' },
     { text: 'Blog', icon: <FaBloggerB />, where: '/blog' },
 ];
 

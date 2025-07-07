@@ -65,7 +65,7 @@ const MainContainer = styled(Box)(({ theme }) => ({
 
 const HeroImageSection = styled(Box)(({ theme }) => ({
   position: 'relative',
-  height: '20vh',
+  height: '50vh',
   overflow: 'hidden',
   '&::before': {
     content: '""',
@@ -74,7 +74,7 @@ const HeroImageSection = styled(Box)(({ theme }) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundImage: 'url("https://www.primax.us/wp-content/uploads/2022/03/Analytics_Banner-%E2%80%93-8.png")',
+    backgroundImage: 'url("https://interestingengineering.com/_next/image?url=https%3A%2F%2Fimages.interestingengineering.com%2F2023%2F12%2F17%2Fimage%2Fjpeg%2FvuPe0eeWZY8i7TszVtG2RMMRLw14TK95viZVkOkX.jpg&w=1200&q=75")',
     backgroundSize: '100% auto', // Stretch width to 100%, height auto-scales
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
@@ -473,6 +473,7 @@ const Page = () => {
   ];
 
   return (
+    
     <MainContainer>
       {/* Hero Image Section */}
       <HeroImageSection />

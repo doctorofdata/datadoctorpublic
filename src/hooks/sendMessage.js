@@ -10,8 +10,8 @@ export async function callSendMessage(message, conversationId) {
     }
 
     const data = await API.post(
-        'frontendApi',
-        '/v1/send_message',
+        'theDataDojo',
+        '/v1/send-message',
         requestData)
 
     return data["body"]

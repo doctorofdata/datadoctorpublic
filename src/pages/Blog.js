@@ -6,7 +6,7 @@ import {
   useTheme,
 } from '@mui/material';
 import DashboardFrame from 'components/DashboardFrame';
-import IframeComponent from './IframeComponent';
+import IframeComponent from '../components/IframeComponent';
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
@@ -356,8 +356,6 @@ const Page = () => {
   );
 };
 
-const Blog = () => {
-  return <DashboardFrame header="Blog" page={<Page />} />;
-};
+const Blog = () => {return <DashboardFrame header = "Blog" page={<Page />} />;};
 
 export default Blog;
