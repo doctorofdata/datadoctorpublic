@@ -11,6 +11,7 @@ import {
 import WifiIcon from '@mui/icons-material/Wifi';
 import DetailedStockDataWidget from './DetailedStockDataWidget';
 import PerformanceChart from './PerformanceChart';
+import StockTicker from './StockTicker';
 
 const ParentComponent = ({ onTickersChange }) => {
     const [data, setData] = useState(null);
@@ -140,6 +141,69 @@ const ParentComponent = ({ onTickersChange }) => {
                     </Box>
                 </Box>
 
+                {/* ---- Instructions & Pizazz ---- */}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        mb: 3,
+                        p: 2,
+                        bgcolor: 'background.default',
+                        borderLeft: 4,
+                        borderColor: 'primary.main',
+                        animation: 'pulse-border 2s infinite',
+                        textAlign: 'left'
+                    }}
+                >
+                    <Typography variant="subtitle1" color="primary" sx={{ fontWeight: 700, mb: 1 }}>
+                        🚀 Welcome to Your Stock Portfolio Dashboard!
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Build, analyze, and visualize your custom stock portfolio in real time.
+                    </Typography>
+                    <ul style={{
+                        color: "#b3b3d7",
+                        margin: 0,
+                        marginBottom: 4,
+                        fontSize: '1rem',
+                        paddingLeft: 20
+                    }}>
+                        <li>
+                            <b>Enter one or more stock symbols</b> (e.g., <span style={{ color: "#8c7cf0" }}>AAPL, MSFT, GOOGL</span>) in the box below, separated by commas.
+                        </li>
+                        <li>
+                            Click <b>Analyze</b> to load the latest performance and risk metrics for your selected stocks.
+
+                            <ul>
+                                <li>Here we will backtest your portfolio to assess hypothetical returns from the last 18 months of trading</li>
+                                <li>To do this, we will use a simple 25 and 50 day short/long trading algorithm to develop signals based on intersections of moving averages</li>
+
+                            </ul>
+                        </li>
+                        <li>
+                            View <b>detailed analytics</b> and interactive charts generated just for your portfolio.
+                        </li>
+                        <li>
+                            Connection status is shown live <WifiIcon sx={{ color: '#8c7cf0', fontSize: 16, verticalAlign: 'middle' }} /> — make sure the backend is connected for live data!
+                        </li>
+                        <li>
+                            <span style={{ color: "#00d084", fontWeight: 600 }}>Tip:</span> Try mixing tech, energy, or finance tickers to compare sector performance.
+                        </li>
+                    </ul>
+                    <Typography variant="caption" sx={{ color: 'secondary.main', fontStyle: 'italic' }}>
+                        All your analysis happens instantly and securely—no account required!
+                    </Typography>
+                    <style>
+                        {`
+                            @keyframes pulse-border {
+                                0% { box-shadow: 0 0 0 0 rgba(140, 124, 240, 0.25); }
+                                70% { box-shadow: 0 0 0 12px rgba(140, 124, 240, 0.07); }
+                                100% { box-shadow: 0 0 0 0 rgba(140, 124, 240, 0.25); }
+                            }
+                        `}
+                    </style>
+                </Paper>
+                {/* ---- END Instructions & Pizazz ---- */}
+
                 <form onSubmit={handleSubmit}>
                     <Box sx={{ 
                         display: 'flex', 
@@ -190,6 +254,7 @@ const ParentComponent = ({ onTickersChange }) => {
             {data && (
                 <Stack spacing={3}>
                     <DetailedStockDataWidget stockData={data} />
+                    <StockTicker tickers={currentTickers}/>
                     <PerformanceChart stockData={data} />
                 </Stack>
             )}

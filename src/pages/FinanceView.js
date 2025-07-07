@@ -12,6 +12,7 @@ import PromptFormatting from './PromptFormatting';
 import StockTicker from './StockTicker';
 
 const darkTheme = createTheme({
+
     palette: {
         mode: 'dark',
         primary: { main: '#8c7cf0' },
@@ -50,6 +51,7 @@ const darkTheme = createTheme({
 });
 
 const FinanceView = () => {
+
     const [currentTickers, setCurrentTickers] = useState([]);
     const [response, setResponse] = useState('');
     const [formattedPrompt, setFormattedPrompt] = useState('');
@@ -115,12 +117,6 @@ const FinanceView = () => {
                         <Grid container spacing={3}>
                             <Grid item xs={12}>
                                 <ParentComponent onTickersChange={handleTickersChange} />
-                            </Grid>
-                        </Grid>
-
-                        <Grid container spacing={3}>
-                            <Grid item xs={12}>
-                                <StockTicker tickers={currentTickers}/>
                             </Grid>
                         </Grid>
 
