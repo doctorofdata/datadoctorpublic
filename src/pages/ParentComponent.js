@@ -176,7 +176,7 @@ const ParentComponent = ({ onTickersChange }) => {
                             <ul>
                                 <li>Here we will backtest your portfolio to assess hypothetical returns from the last 18 months of trading</li>
                                 <li>To do this, we will use a simple 25 and 50 day short/long trading algorithm to develop signals based on intersections of moving averages</li>
-
+                                <li>Trading is initialized with $10,000 per Investment</li>
                             </ul>
                         </li>
                         <li>
