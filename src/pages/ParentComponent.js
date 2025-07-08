@@ -12,9 +12,11 @@ import WifiIcon from '@mui/icons-material/Wifi';
 import DetailedStockDataWidget from './DetailedStockDataWidget';
 import PerformanceChart from './PerformanceChart';
 import StockTicker from './StockTicker';
+import RecentPricesChart from './RecentPricesChart';
 
 const ParentComponent = ({ onTickersChange }) => {
     const [data, setData] = useState(null);
+    const [chartPrices, setChartPrices] = useState([]);
     const [tickers, setTickers] = useState('');
     const [currentTickers, setCurrentTickers] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -82,6 +84,10 @@ const ParentComponent = ({ onTickersChange }) => {
         try {
             const response = await fetch(`http://localhost:5000/data?query=${encodeURIComponent(tickers)}`);
             const result = await response.json();
+
+            const chartRes = await fetch(`http://localhost:5000/charts?query=${encodeURIComponent(tickers)}`);
+            const chartJson = await chartRes.json();
+
             if (result.status === 'success') {
                 setData(result);
                 const tickerArray = tickers.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
@@ -89,6 +95,12 @@ const ParentComponent = ({ onTickersChange }) => {
                 setConnectionStatus('connected');
             } else {
                 setError(result.message || 'An error occurred');
+            }
+
+            if (chartJson.status === 'success') {
+                setChartPrices(Array.isArray(chartJson.prices) ? chartJson.prices : []);
+            } else {
+                setChartPrices([]);
             }
         } catch (error) {
             setError('Failed to fetch data. Please try again.');
@@ -141,7 +153,6 @@ const ParentComponent = ({ onTickersChange }) => {
                     </Box>
                 </Box>
 
-                {/* ---- Instructions & Pizazz ---- */}
                 <Paper
                     elevation={0}
                     sx={{
@@ -190,7 +201,7 @@ const ParentComponent = ({ onTickersChange }) => {
                         </li>
                     </ul>
                     <Typography variant="caption" sx={{ color: 'secondary.main', fontStyle: 'italic' }}>
-                        All your analysis happens instantly and securely—no account required!
+                        All analysis conducted instantly and securely with no account or signup required!
                     </Typography>
                     <style>
                         {`
@@ -202,7 +213,6 @@ const ParentComponent = ({ onTickersChange }) => {
                         `}
                     </style>
                 </Paper>
-                {/* ---- END Instructions & Pizazz ---- */}
 
                 <form onSubmit={handleSubmit}>
                     <Box sx={{ 
@@ -254,8 +264,9 @@ const ParentComponent = ({ onTickersChange }) => {
             {data && (
                 <Stack spacing={3}>
                     <DetailedStockDataWidget stockData={data} />
-                    <StockTicker tickers={currentTickers}/>
                     <PerformanceChart stockData={data} />
+                    <StockTicker tickers={currentTickers}/>
+                    <RecentPricesChart prices={chartPrices} tickers={currentTickers} />
                 </Stack>
             )}
         </Box>

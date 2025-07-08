@@ -1,8 +1,7 @@
-# Import libraries
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-from datetime import date, datetime
+from datetime import date
 from dateutil.relativedelta import relativedelta
 import yfinance as yf
 import numpy as np
@@ -14,158 +13,98 @@ import re
 import ast
 
 with open('/Users/anon/Documents/school/Code/frontendv2/src/credentials.txt') as f:
-
     credentials = ast.literal_eval(f.read())
 
 def strip_html_tags(text):
-    """Remove html tags from a string."""
     if not text:
         return ""
     clean = re.compile('<.*?>')
     return re.sub(clean, '', text)
 
-# Get today's date
 today = date.today()
 dt = today.strftime('%Y-%m-%d')
+eighteen_months_ago = today - relativedelta(months=18)
 
-# Calculate the date 18 months ago
-eighteen_months_ago = today - relativedelta(months = 18)
-
-genai.configure(api_key = credentials['gemini_api_key'])
+genai.configure(api_key=credentials['gemini_api_key'])
 gemini = genai.GenerativeModel('gemini-2.5-flash')
 
-# Init app
 app = Flask(__name__)
+CORS(app, origins="*")
 
-# Configure CORS properly
-CORS(app, origins = "*")
-
-# Define stock data endpoint
-@app.route('/data', methods = ['GET'])
+@app.route('/data', methods=['GET'])
 def get_data():
     query = request.args.get('query', '')
     if not query:
         return jsonify({'status': 'error', 'message': 'No query provided'}), 400
 
     tickers = [i.strip() for i in query.split(',') if i.strip()]
-
     if not tickers:
         return jsonify({'status': 'error', 'message': 'No tickers provided'}), 400
 
     all_ports = []
-
     try:
-
         for ticker in tickers:
-
-            data = yf.download(ticker, start = eighteen_months_ago, end=today)
+            data = yf.download(ticker, start=eighteen_months_ago, end=today)
             if data.empty:
                 continue
-
-            # Flatten multi-index columns if present
             if isinstance(data.columns, pd.MultiIndex):
                 data.columns = [i[0] for i in data.columns]
-
-            # Calculate indicators
             data['short'] = data['Close'].rolling(25).mean()
             data['long'] = data['Close'].rolling(50).mean()
             data = data.dropna(subset=['Close'])
-
-            # Signal logic
             data['signal'] = 0
             data.loc[data.index[25:], 'signal'] = np.where(data['short'][25:] > data['long'][25:], 1.0, 0.0)
             data['positions'] = data['signal'].diff().fillna(0)
-
-            # Portfolio calculations
             positions = 1000 * data['signal']
             holdings = positions * data['Close']
             cash = 10000 - (positions.diff().fillna(0) * data['Close']).cumsum()
             total = cash + holdings
             returns = total.pct_change().fillna(0)
-
-            # Build portfolio DataFrame
             port = pd.DataFrame({
-                                'Date': data.index,
-                                'ticker': ticker,
-                                'holdings': holdings,
-                                'cash': cash,
-                                'total': total,
-                                'returns': returns})
-
-            all_ports.append(port.reset_index(drop = True))
-
+                'Date': data.index,
+                'ticker': ticker,
+                'holdings': holdings,
+                'cash': cash,
+                'total': total,
+                'returns': returns
+            })
+            all_ports.append(port.reset_index(drop=True))
         if not all_ports:
-
             return jsonify({'status': 'success', 'data': []})
-
-        out = pd.concat(all_ports, ignore_index = True)
+        out = pd.concat(all_ports, ignore_index=True)
         out = out.replace([np.inf, -np.inf], np.nan)
         out = out.where(pd.notnull(out), None)
-
-        performance = out.groupby(out.Date).agg({'holdings': 'sum',
-                                                 'cash': 'sum',
-                                                 'total': 'sum'}).reset_index()
-        
+        performance = out.groupby(out.Date).agg({'holdings': 'sum', 'cash': 'sum', 'total': 'sum'}).reset_index()
         performance.Date = performance['Date'].apply(lambda x: x.strftime("%Y-%m-%d"))
-        performance = performance.to_dict(orient = 'records')
-                
+        performance = performance.to_dict(orient='records')
         return jsonify({'status': 'success', 'out': performance})
-
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 def fetch_news_for_tickers(tickers):
-
-    """Fetch news for the given tickers and return a list of articles."""
     all_articles = []
-
     for ticker in tickers:
-
         url = f"https://news.google.com/rss/search?q={ticker}+stock"
-        
         try:
-
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             root = ET.fromstring(response.content)
             items = root.findall('.//item')
-
-            for item in items[:5]:  
-                
+            for item in items[:5]:
                 description_raw = item.find('description').text if item.find('description') is not None else ""
                 description_clean = strip_html_tags(description_raw)
                 all_articles.append({
-                                       'title': item.find('title').text if item.find('title') is not None else "",
-                                          'text': description_clean,
-                                         'publishedDate': item.find('pubDate').text if item.find('pubDate') is not None else "",
-                                          'symbol': ticker})
-
+                    'title': item.find('title').text if item.find('title') is not None else "",
+                    'text': description_clean,
+                    'publishedDate': item.find('pubDate').text if item.find('pubDate') is not None else "",
+                    'symbol': ticker
+                })
         except Exception as e:
-
             print(f"Error fetching news for {ticker}: {e}")
-
     return all_articles
-
-def format_news_context(articles):
-
-    """Format articles into a markdown section for context."""
-    if not articles:
-
-        return "No recent news articles available.\n"
-    
-    context = f"You are an expert financial assistant being asked to evaluate the users portfolio which is comprised of the following assets: {tickers}\nHere is some recent news media to provide context- \n"
-
-    for art in articles:
-        
-        context += (f"- **[{art['title']}]** ({art['symbol']}, {art['publishedDate']}): {art['text']}\n")
-
-    context += "\nBased on this information, please provide your outlook on the health and prospects of the portfolio."
-
-    return context
 
 @app.route('/news', methods=['GET'])
 def get_news():
-
     query = request.args.get('query', '')
     if not query:
         return jsonify({'status': 'error', 'message': 'No ticker(s) provided'}), 400
@@ -175,39 +114,27 @@ def get_news():
 
 @app.route('/ask', methods=['POST'])
 def ask_model():
-
     try:
-
         data = request.get_json()
         prompt = data.get('prompt', '') if data else ''
-
         if not prompt:
-
             return jsonify({'status': 'error', 'message': 'No prompt provided'}), 400
-
-        # Call Gemini with the composed prompt
         response = gemini.generate_content(prompt)
         return jsonify({'status': 'success', 'response': response.text, 'formattedPrompt': prompt})
-    
     except Exception as e:
-
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/quote', methods=['GET'])
 def get_quote():
-    
     tickers_param = request.args.get('tickers')
     if not tickers_param:
         return jsonify({'status': 'error', 'message': 'No tickers provided'}), 400
-
     tickers = [t.strip().upper() for t in tickers_param.split(',') if t.strip()]
     results = []
-
     for ticker in tickers:
         try:
             t = yf.Ticker(ticker)
             data = t.history(period="2d")
-            print(f"DEBUG: Ticker {ticker} data:\n{data}\n")  # Debug info in your Flask console
             if data.empty or 'Close' not in data or data['Close'].isnull().all():
                 results.append({'ticker': ticker, 'error': 'No data found'})
                 continue
@@ -224,13 +151,44 @@ def get_quote():
             })
         except Exception as e:
             results.append({'ticker': ticker, 'error': str(e)})
-
     return jsonify({'status': 'success', 'results': results})
-    
-# Add a test endpoint
-@app.route('/health', methods = ['GET'])
+
+@app.route('/charts', methods=['GET'])
+def get_chart_data():
+    query = request.args.get('query', '')
+    if not query:
+        return jsonify({'status': 'error', 'message': 'No query provided'}), 400
+
+    tickers = [i.strip() for i in query.split(',') if i.strip()]
+    if not tickers:
+        return jsonify({'status': 'error', 'message': 'No tickers provided'}), 400
+
+    all_prices = []
+    try:
+        for ticker in tickers:
+            data = yf.download(ticker, start=eighteen_months_ago, end=today)
+            if data.empty:
+                continue
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = [i[0] for i in data.columns]
+            data = data.reset_index()
+            data = data[['Date', 'Close']]  # Only get Date and Close columns
+            data['ticker'] = ticker
+            data['Date'] = data['Date'].apply(lambda x: x.strftime("%Y-%m-%d") if hasattr(x, "strftime") else str(x))
+            all_prices.append(data)
+        if not all_prices:
+            return jsonify({'status': 'success', 'prices': []}), 200
+
+        out = pd.concat(all_prices, ignore_index=True)
+        out = out.replace([np.inf, -np.inf], np.nan)
+        out = out.where(pd.notnull(out), None)
+        return jsonify({'status': 'success', 'prices': out.to_dict(orient='records')}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'success', 'message': 'Flask server is running!'})
 
 if __name__ == '__main__':
-    app.run(debug = True, host = '0.0.0.0', port = 5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
