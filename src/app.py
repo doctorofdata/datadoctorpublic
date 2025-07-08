@@ -12,20 +12,25 @@ import xml.etree.ElementTree as ET
 import re
 import ast
 
-with open('/Users/anon/Documents/school/Code/frontendv2/src/credentials.txt') as f:
+with open('credentials.txt') as f:
+
     credentials = ast.literal_eval(f.read())
 
 def strip_html_tags(text):
+
     if not text:
+
         return ""
+    
     clean = re.compile('<.*?>')
+    
     return re.sub(clean, '', text)
 
 today = date.today()
 dt = today.strftime('%Y-%m-%d')
 eighteen_months_ago = today - relativedelta(months=18)
 
-genai.configure(api_key=credentials['gemini_api_key'])
+genai.configure(api_key = credentials['gemini_api_key'])
 gemini = genai.GenerativeModel('gemini-2.5-flash')
 
 app = Flask(__name__)
