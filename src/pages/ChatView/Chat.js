@@ -26,6 +26,25 @@ function articleToContextString(article) {
   return parts.join('\n');
 }
 
+// Limit the number of articles per ticker symbol BEFORE reranking
+const MAX_ARTICLES_PER_TICKER = 3; // <-- change this value as needed
+
+function limitArticlesPerTicker(articles, maxPerTicker) {
+  const grouped = {};
+  // Group articles by ticker symbol
+  for (const article of articles) {
+    const symbol = article.symbol || 'UNKNOWN';
+    if (!grouped[symbol]) grouped[symbol] = [];
+    grouped[symbol].push(article);
+  }
+  // For each ticker, take up to maxPerTicker articles
+  let limited = [];
+  Object.values(grouped).forEach(arr => {
+    limited = limited.concat(arr.slice(0, maxPerTicker));
+  });
+  return limited;
+}
+
 const Chat = ({ fetchNews, sendMessage, rerankEmbed, crossEncode, setContextArticles }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -55,7 +74,7 @@ const Chat = ({ fetchNews, sendMessage, rerankEmbed, crossEncode, setContextArti
 
       if (newsResult.status === 'success' && Array.isArray(newsResult.articles) && newsResult.articles.length > 0) {
         // Prepare articles: only keep those with at least text/snippet/title
-        const filteredArticles = newsResult.articles.filter(
+        let filteredArticles = newsResult.articles.filter(
           a =>
             (a.text && a.text.trim()) ||
             (a.title && a.title.trim()) ||
@@ -63,6 +82,9 @@ const Chat = ({ fetchNews, sendMessage, rerankEmbed, crossEncode, setContextArti
         );
         // LOG: Number of filtered articles
         console.log("filteredArticles.length:", filteredArticles.length, filteredArticles);
+
+        // LIMIT ARTICLES PER TICKER BEFORE RERANKING
+        filteredArticles = limitArticlesPerTicker(filteredArticles, MAX_ARTICLES_PER_TICKER);
 
         // Use crossEncode to rank, but use FULL article for prompt
         let topIndexes = [];
@@ -101,8 +123,9 @@ const Chat = ({ fetchNews, sendMessage, rerankEmbed, crossEncode, setContextArti
         }
 
         articlesForTable = topIndexes.map(idx => filteredArticles[idx]).filter(Boolean);
+
         // LOG: Number and content of articles selected for context table
-        console.log("articlesForTable.length:", articlesForTable.length, articlesForTable);
+        console.log("articlesForTable.length (after limiting):", articlesForTable.length, articlesForTable);
 
         articlesForPrompt = articlesForTable.map(articleToContextString);
         // LOG: Number and preview of articles used in prompt

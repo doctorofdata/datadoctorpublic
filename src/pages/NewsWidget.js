@@ -21,7 +21,6 @@ import { ENDPOINTS, USE_AWS_BACKEND } from '../config/api-config';
 // Direct API call function for fetch-news endpoint
 const fetchNewsFromAPI = async (query) => {
     console.log('[fetchNewsFromAPI] Fetching news for query:', query);
-    
     try {
         const response = await fetch(ENDPOINTS.FETCH_NEWS, {
             method: 'POST',
@@ -30,18 +29,15 @@ const fetchNewsFromAPI = async (query) => {
             },
             body: JSON.stringify({ query })
         });
-        
         if (!response.ok) {
             throw new Error(`Failed to fetch news: ${response.status}`);
         }
-        
         const data = await response.json();
         console.log('[fetchNewsFromAPI] Response data:', data);
-        
         // Format response to match expected structure
         return {
             status: data.status || 'success',
-            articles: data.results || [],
+            articles: data.articles || data.results || [],
             message: data.message
         };
     } catch (error) {
@@ -50,8 +46,8 @@ const fetchNewsFromAPI = async (query) => {
     }
 };
 
-const NewsWidget = ({ tickers = [], articles = [], loading = false, error = null }) => {
-    const [newsData, setNewsData] = useState(articles || []);
+const NewsWidget = ({ tickers = [], loading = false, error = null, onNewsFetched }) => {
+    const [newsData, setNewsData] = useState([]);
     const [isLoading, setIsLoading] = useState(loading || false);
     const [newsError, setNewsError] = useState(error || null);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -63,6 +59,8 @@ const NewsWidget = ({ tickers = [], articles = [], loading = false, error = null
 
         if (!tickerList || tickerList.length === 0) {
             console.log('No tickers provided');
+            setNewsData([]);
+            if (onNewsFetched) onNewsFetched([]);
             return;
         }
 
@@ -72,32 +70,30 @@ const NewsWidget = ({ tickers = [], articles = [], loading = false, error = null
         setCurrentIndex(0);
 
         try {
-            // Use the AWS backend API endpoint when USE_AWS_BACKEND is true,
-            // otherwise fall back to the original callFetchNews function
             let result;
-            
             if (USE_AWS_BACKEND) {
                 result = await fetchNewsFromAPI(tickerList.join(','));
             } else {
-                // Fallback to original implementation
                 const { callFetchNews } = await import('../hooks/callNews');
                 result = await callFetchNews(tickerList.join(','));
             }
-            
             console.log('News API result:', result);
-            
+
+            const articlesArray = Array.isArray(result.articles)
+                ? result.articles
+                : (Array.isArray(result.results) ? result.results : []);
+            setNewsData(articlesArray);
+            if (onNewsFetched) onNewsFetched(articlesArray);
             if (result.status === 'success' || result.status === 200) {
-                setNewsData(Array.isArray(result.articles) ? result.articles : 
-                            Array.isArray(result.results) ? result.results : []);
                 setNewsError(null);
             } else {
-                setNewsData([]);
                 setNewsError(result.message || 'Failed to fetch news');
             }
         } catch (err) {
             console.error('Error fetching news:', err);
             setNewsData([]);
             setNewsError(err.message || 'Failed to fetch news');
+            if (onNewsFetched) onNewsFetched([]);
         } finally {
             setIsLoading(false);
         }
@@ -109,22 +105,18 @@ const NewsWidget = ({ tickers = [], articles = [], loading = false, error = null
         } else {
             setNewsData([]);
             setNewsError(null);
+            if (onNewsFetched) onNewsFetched([]);
         }
+        // eslint-disable-next-line
     }, [tickers]);
 
-    // If external articles are provided, use them
-    useEffect(() => {
-        if (articles && articles.length > 0) {
-            setNewsData(articles);
-        }
-    }, [articles]);
+    // Remove ALL useEffect related to articles prop!
+    // Remove all references to articles prop in parameters and defaultProps!
 
-    // Update loading state if external loading prop changes
     useEffect(() => {
         setIsLoading(loading);
     }, [loading]);
 
-    // Update error state if external error prop changes
     useEffect(() => {
         setNewsError(error);
     }, [error]);

@@ -12,9 +12,29 @@ import PromptFormatting from './PromptFormatting';
 import StockTicker from './StockTicker';
 import { ENDPOINTS, USE_AWS_BACKEND } from '../config/api-config';
 
+const MAX_NEWS_PER_TICKER = 3;
+
+function groupAndLimitArticles(articles, maxPerTicker = 3) {
+    const grouped = {};
+    for (const article of articles) {
+        let symbol = article.symbol;
+        if (!symbol && article.title) {
+            const m = article.title.match(/\((\w{1,5})\)/);
+            symbol = m ? m[1] : 'UNKNOWN';
+        }
+        if (!grouped[symbol]) grouped[symbol] = [];
+        grouped[symbol].push(article);
+    }
+    let limited = [];
+    for (const arr of Object.values(grouped)) {
+        arr.sort((a, b) => new Date(b.publishedDate || b.date) - new Date(a.publishedDate || a.date));
+        limited = limited.concat(arr.slice(0, maxPerTicker));
+    }
+    return limited;
+}
+
 async function fetchQuotes(tickers) {
     if (USE_AWS_BACKEND) {
-        console.log('[fetchQuotes] Using AWS backend for tickers:', tickers);
         try {
             const response = await fetch(ENDPOINTS.TICKER_FEED, {
                 method: 'POST',
@@ -22,40 +42,23 @@ async function fetchQuotes(tickers) {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json' 
                 },
-                body: JSON.stringify({ query: tickers.join(',') }) // Changed from 'tickers' to 'query'
+                body: JSON.stringify({ query: tickers.join(',') })
             });
-            
-            console.log('[fetchQuotes] AWS response status:', response.status);
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch quotes: ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error(`Failed to fetch quotes: ${response.status}`);
             const data = await response.json();
-            console.log('[fetchQuotes] AWS response data:', data);
             return data;
         } catch (error) {
-            console.error('[fetchQuotes] AWS error:', error);
             throw error;
         }
     } else {
-        console.log('[fetchQuotes] Using local backend for tickers:', tickers);
         const param = encodeURIComponent(tickers.join(','));
         const url = `${ENDPOINTS.LOCAL.QUOTES}?tickers=${param}`;
-        
-        console.log('[fetchQuotes] Fetching from local URL:', url);
-        
         const response = await fetch(url, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
         });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch quotes');
-        }
-        
+        if (!response.ok) throw new Error('Failed to fetch quotes');
         const data = await response.json();
-        console.log('[fetchQuotes] Local response data:', data);
         return data;
     }
 }
@@ -108,24 +111,20 @@ const FinanceView = () => {
     const [expanded, setExpanded] = useState(false);
     const [quotes, setQuotes] = useState([]);
     const [quotesError, setQuotesError] = useState('');
+    const [newsArticles, setNewsArticles] = useState([]);
 
     useEffect(() => {
         if (!currentTickers.length) return;
-        
-        console.log('Fetching quotes for:', currentTickers);
         fetchQuotes(currentTickers)
             .then(data => {
-                console.log('Quote response:', data);
                 if (data.status === 'success') {
                     setQuotes(data.results);
                     setQuotesError('');
                 } else {
                     setQuotesError(data.message || "Error fetching quotes");
-                    console.error('Error in quote data:', data);
                 }
             })
             .catch(err => {
-                console.error('Error fetching quotes:', err);
                 setQuotesError(err.message);
             });
     }, [currentTickers]);
@@ -134,55 +133,53 @@ const FinanceView = () => {
         setCurrentTickers(tickers);
     };
 
+    const handleNewsFetched = (articles) => {
+        setNewsArticles(articles || []);
+    };
+
     const handleAskAI = async () => {
-    console.log("Submitting prompt:", formattedPrompt);
-
-    setLoading(true);
-    setError('');
-    setResponse('');
-    
-    try {
-        console.log(`[handleAskAI] Calling ${ENDPOINTS.SEND_MESSAGE}`);
-        
-        const res = await fetch(ENDPOINTS.SEND_MESSAGE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: formattedPrompt,
-                tickers: currentTickers
-            })
-        });
-
-        if (!res.ok) {
-            throw new Error(`API error! Status: ${res.status}`);
-        }
-
-        const rawResult = await res.json();
-        console.log('[handleAskAI] Raw response:', rawResult);
-
-        // Handle AWS Lambda proxy integration format if needed
-        const result = rawResult.body 
-            ? (typeof rawResult.body === 'string' ? JSON.parse(rawResult.body) : rawResult.body)
-            : rawResult;
-
-        if (result.status === 'success') {
-            setResponse(result.response);
-            if (result.formattedPrompt) {
-                setFormattedPrompt(result.formattedPrompt);
+        const limitedArticles = groupAndLimitArticles(newsArticles, MAX_NEWS_PER_TICKER);
+        const contextLines = limitedArticles.map(article =>
+            `- ${article.title} (${article.symbol || ''}, ${article.publishedDate || article.date || ''}): ${article.text || ''}`
+        );
+        const prompt =
+`You are an expert financial assistant being asked to evaluate the user's portfolio: ${currentTickers.join(', ')}.
+Here is some recent news media to provide context:
+${contextLines.join('\n')}
+`;
+        setFormattedPrompt(prompt);
+        setLoading(true);
+        setError('');
+        setResponse('');
+        try {
+            const res = await fetch(ENDPOINTS.SEND_MESSAGE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    tickers: currentTickers
+                })
+            });
+            if (!res.ok) throw new Error(`API error! Status: ${res.status}`);
+            const rawResult = await res.json();
+            const result = rawResult.body 
+                ? (typeof rawResult.body === 'string' ? JSON.parse(rawResult.body) : rawResult.body)
+                : rawResult;
+            if (result.status === 'success') {
+                setResponse(result.response);
+                if (result.formattedPrompt) setFormattedPrompt(result.formattedPrompt);
+                setExpanded(true);
+            } else {
+                setError(result.message || "AI call failed");
+                setExpanded(true);
             }
+        } catch (error) {
+            setError('Failed to get AI response. Please try again.');
             setExpanded(true);
-        } else {
-            setError(result.message || "AI call failed");
-            setExpanded(true);
+        } finally {
+            setLoading(false);
         }
-    } catch (error) {
-        setError('Failed to get AI response. Please try again.');
-        setExpanded(true);
-        console.error('Error getting AI response:', error);
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     return (
         <ThemeProvider theme={darkTheme}>
@@ -203,9 +200,9 @@ const FinanceView = () => {
                             <Grid item xs={12}>
                                 <ParentComponent onTickersChange={handleTickersChange} setFormattedPrompt={setFormattedPrompt} />
                             </Grid>
-                        </Grid>
-
-                        <Grid container spacing={3}>
+                            <Grid item xs={12}>
+                                <NewsWidget tickers={currentTickers} onNewsFetched={handleNewsFetched} />
+                            </Grid>
                             <Grid item xs={12}>
                                 <AIChat
                                     onAskAI={handleAskAI}
@@ -218,7 +215,6 @@ const FinanceView = () => {
                                 <PromptFormatting prompt={formattedPrompt} />
                             </Grid>
                         </Grid>
-
                     </Box>
                 }
             />

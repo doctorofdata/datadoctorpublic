@@ -13,7 +13,8 @@ import DetailedStockDataWidget from './DetailedStockDataWidget';
 import PerformanceChart from './PerformanceChart';
 import StockTicker from './StockTicker';
 import RecentPricesChart from './RecentPricesChart';
-import NewsWidget from './NewsWidget';
+// REMOVE this import, since we'll remove the NewsWidget here
+// import NewsWidget from './NewsWidget';
 import { callStockData } from '../hooks/callStockData';
 import { callFetchNews } from '../hooks/callNews';
 import { ENDPOINTS } from '../config/api-config';
@@ -21,7 +22,7 @@ import { ENDPOINTS } from '../config/api-config';
 const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
     const [data, setData] = useState(null);
     const [chartPrices, setChartPrices] = useState([]);
-    const [stockPrices, setStockPrices] = useState([]); // New state for stock prices
+    const [stockPrices, setStockPrices] = useState([]);
     const [tickers, setTickers] = useState('');
     const [currentTickers, setCurrentTickers] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -32,12 +33,10 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
     const [newsError, setNewsError] = useState(null);
     const [apiDetails, setApiDetails] = useState({});
 
-    // Modified connection check that uses stock-data endpoint and POST method
+    // Connection check, unchanged
     const checkConnection = async () => {
         try {
             console.log('Testing connection to AWS backend...');
-            
-            // Skip ticker-feed and use stock-data endpoint directly
             console.log('Checking connection via stock-data endpoint...');
             try {
                 const response = await fetch(ENDPOINTS.STOCK_DATA, {
@@ -47,12 +46,7 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
                     },
                     body: JSON.stringify({ query: 'AAPL' })
                 });
-                
-                console.log('Raw fetch response:', response);
-                console.log('Status:', response.status);
-                console.log('Status text:', response.statusText);
-                
-                // Store API details for debugging
+
                 setApiDetails({
                     url: ENDPOINTS.STOCK_DATA,
                     status: response.status,
@@ -60,10 +54,9 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
                     headers: Object.fromEntries([...response.headers.entries()]),
                     timestamp: new Date().toISOString()
                 });
-                
+
                 if (response.ok) {
                     setConnectionStatus('connected');
-                    console.log('Connection successful!');
                     return;
                 } else {
                     setConnectionStatus('disconnected');
@@ -71,26 +64,19 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
             } catch (fetchError) {
                 console.error('Direct fetch error:', fetchError);
             }
-            
+
             // Fallback to using the hook
-            console.log('Trying alternative connection test via stock data hook...');
             try {
                 const stockResult = await callStockData('AAPL');
-                console.log('Stock data hook test result:', stockResult);
-                
                 if (stockResult && (stockResult.status === 'success' || stockResult.statusCode === 200)) {
                     setConnectionStatus('connected');
-                    console.log('Connection established through stock-data hook');
                 } else {
                     setConnectionStatus('disconnected');
-                    console.log('Connection test failed with stock-data hook');
                 }
             } catch (hookError) {
-                console.error('Stock data hook error:', hookError);
                 setConnectionStatus('disconnected');
             }
         } catch (error) {
-            console.error('AWS connection check failed:', error);
             setApiDetails(prev => ({
                 ...prev,
                 error: error.toString(),
@@ -120,7 +106,7 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
         setError(null);
         setData(null);
         setChartPrices([]);
-        setStockPrices([]); // Clear stock prices
+        setStockPrices([]);
         setNews([]);
         setNewsError(null);
 
@@ -132,62 +118,38 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
         // 1. Fetch stock data
         try {
             const result = await callStockData(tickers);
-            console.log('Stock data result:', result);
-            // Debug the entire response structure
-            console.log('API Response Keys:', Object.keys(result));
-            console.log('Has prices?', !!result.prices, 'Type:', typeof result.prices);
-            console.log('Prices is array?', Array.isArray(result.prices));
-            console.log('Prices length:', result.prices?.length);
-
             if (result && (result.status === 'success' || result.statusCode === 200)) {
-                // FIXED: Properly check if data is in result.out or result directly
                 if (result.out && Array.isArray(result.out)) {
-                    // Store the data properly
-                    setData(result);  // Set entire result with { status, out: [...] }
+                    setData(result);
                     setChartPrices(result.out);
-                    console.log("Set chart data from result.out:", result.out.length, "items");
-                    
-                    // Store stock prices separately if available
                     if (result.prices && Array.isArray(result.prices)) {
                         setStockPrices(result.prices);
-                        console.log("Set stock prices:", result.prices.length, "items");
                     } else {
-                        console.warn("No prices array in API response");
                         setStockPrices([]);
                     }
                 } else if (result.body) {
-                    // Handle nested response in body (fallback)
                     let bodyData = typeof result.body === 'string' ? JSON.parse(result.body) : result.body;
-                    
                     if (bodyData.out && Array.isArray(bodyData.out)) {
                         setData(bodyData);
                         setChartPrices(bodyData.out);
-                        console.log("Set chart data from result.body.out:", bodyData.out.length, "items");
-                        
-                        // Check for prices in bodyData
                         if (bodyData.prices && Array.isArray(bodyData.prices)) {
                             setStockPrices(bodyData.prices);
-                            console.log("Set stock prices from bodyData:", bodyData.prices.length, "items");
                         }
                     } else if (Array.isArray(bodyData)) {
                         setData({ out: bodyData });
                         setChartPrices(bodyData);
-                        console.log("Set chart data from array in body:", bodyData.length, "items");
                     } else {
-                        console.error("Unexpected data structure in body:", bodyData);
                         setError("Received data in unexpected format");
                         setData(null);
                         setChartPrices([]);
                         setStockPrices([]);
                     }
                 } else {
-                    console.error("No usable data found in response:", result);
                     setError("No data received from server");
                     setData(null);
                     setChartPrices([]);
                     setStockPrices([]);
                 }
-                
                 setCurrentTickers(tickerArray);
                 setConnectionStatus('connected');
             } else {
@@ -213,8 +175,6 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
             let newsResult = null;
             try {
                 newsResult = await callFetchNews(tickerArray.join(','));
-                console.log('News result:', newsResult);
-                
                 if (
                     newsResult &&
                     (newsResult.status === 'success' || newsResult.statusCode === 200) &&
@@ -235,26 +195,9 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
             } finally {
                 setNewsLoading(false);
 
-                // Always update Model Input Preview
-                if (setFormattedPrompt) {
-                    const articlesArray = (newsResult && Array.isArray(newsResult.articles)) ? newsResult.articles : [];
-                    const context =
-                        `You are an expert financial assistant being asked to evaluate the user's portfolio: ${tickerArray.join(', ')}.\n` +
-                        (articlesArray.length
-                            ? "Here is some recent news media to provide context:\n" +
-                                articlesArray.map(art =>
-                                    `- ${art.title} (${art.symbol || ''}, ${art.publishedDate || art.published_date || art.date || ''}): ${art.text || art.summary || art.description || ''}`
-                                ).join('\n')
-                            : "No recent news articles available.\n"
-                        );
-                    setFormattedPrompt(context);
-                }
             }
         }
     };
-
-    // Only show NewsWidget if any news request activity is present
-    const showNewsWidget = !!(newsLoading || news.length > 0 || newsError || currentTickers.length > 0);
 
     return (
         <Box sx={{
@@ -306,8 +249,6 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
                         />
                     </Box>
                 </Box>
-
-                {/* ---- Welcome Panel ---- */}
                 <Paper
                     elevation={0}
                     sx={{
@@ -372,8 +313,6 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
                         `}
                     </style>
                 </Paper>
-                {/* ---- End Welcome Panel ---- */}
-
                 <form onSubmit={handleSubmit}>
                     <Box sx={{ display: 'flex', gap: 3, width: '100%' }}>
                         <TextField
@@ -405,23 +344,21 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
                 </Paper>
             )}
 
-            {showNewsWidget && (
+            {/* REMOVE: NewsWidget from here */}
+            {/* {showNewsWidget && (
                 <NewsWidget
                     tickers={currentTickers}
                     articles={news}
                     loading={newsLoading}
                     error={newsError}
                 />
-            )}
+            )} */}
             <Box sx={{ mb: 4 }} /> {/* This adds space after NewsWidget */}
-            {/* Inside the return statement, where you render RecentPricesChart */}
             {data && data.out && (
                     <Stack spacing={3}>
                         <DetailedStockDataWidget stockData={data} />
                         <PerformanceChart stockData={data} />
                         <StockTicker tickers={currentTickers} />
-                        
-                        {/* Pass data every possible way to ensure it works */}
                         <RecentPricesChart 
                             prices={data.prices} 
                             stockData={data} 
@@ -430,7 +367,6 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
                         />
                     </Stack>
                 )}
-
         </Box>
     );
 };
