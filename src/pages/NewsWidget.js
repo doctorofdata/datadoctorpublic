@@ -16,8 +16,39 @@ import NewspaperIcon from '@mui/icons-material/Newspaper';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { callFetchNews } from '../hooks/callNews';
 import { ENDPOINTS, USE_AWS_BACKEND } from '../config/api-config';
+
+// Direct API call function for fetch-news endpoint
+const fetchNewsFromAPI = async (query) => {
+    console.log('[fetchNewsFromAPI] Fetching news for query:', query);
+    
+    try {
+        const response = await fetch(ENDPOINTS.FETCH_NEWS, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ query })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch news: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('[fetchNewsFromAPI] Response data:', data);
+        
+        // Format response to match expected structure
+        return {
+            status: data.status || 'success',
+            articles: data.results || [],
+            message: data.message
+        };
+    } catch (error) {
+        console.error('[fetchNewsFromAPI] Error:', error);
+        throw error;
+    }
+};
 
 const NewsWidget = ({ tickers = [], articles = [], loading = false, error = null }) => {
     const [newsData, setNewsData] = useState(articles || []);
@@ -41,12 +72,23 @@ const NewsWidget = ({ tickers = [], articles = [], loading = false, error = null
         setCurrentIndex(0);
 
         try {
-            const result = await callFetchNews(tickerList.join(','));
+            // Use the AWS backend API endpoint when USE_AWS_BACKEND is true,
+            // otherwise fall back to the original callFetchNews function
+            let result;
+            
+            if (USE_AWS_BACKEND) {
+                result = await fetchNewsFromAPI(tickerList.join(','));
+            } else {
+                // Fallback to original implementation
+                const { callFetchNews } = await import('../hooks/callNews');
+                result = await callFetchNews(tickerList.join(','));
+            }
             
             console.log('News API result:', result);
             
             if (result.status === 'success' || result.status === 200) {
-                setNewsData(Array.isArray(result.articles) ? result.articles : []);
+                setNewsData(Array.isArray(result.articles) ? result.articles : 
+                            Array.isArray(result.results) ? result.results : []);
                 setNewsError(null);
             } else {
                 setNewsData([]);

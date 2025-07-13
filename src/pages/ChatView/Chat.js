@@ -1,312 +1,274 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-    Avatar,
-    Box,
-    CircularProgress,
-    IconButton,
-    Paper,
-    Stack,
-    TextField,
-    Typography
+  Box,
+  TextField,
+  Button,
+  Paper,
+  Typography,
+  CircularProgress,
+  Avatar,
+  List,
+  ListItem,
+  Divider
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { styled } from '@mui/material/styles';
-import { VscPerson } from "react-icons/vsc";
-import SendIcon from '@mui/icons-material/Send';
-import { GiRobotGolem } from "react-icons/gi";
+import { Send as SendIcon } from '@mui/icons-material';
+import ReactMarkdown from 'react-markdown';
+import { BsPersonWorkspace, BsRobot } from "react-icons/bs";
 
-import { callConversations } from 'hooks/conversations';
-import { callSendMessage } from 'hooks/sendMessage';
-
-// Styled components to match RagView.js styling
-const ChatPaper = styled(Paper)(({ theme }) => ({
-    flexGrow: 1,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 0,
-    boxShadow: 'none',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-}));
-
-const MessageContainer = styled(Box)(({ theme }) => ({
-    flexGrow: 1,
-    overflowY: 'auto',
-    padding: theme.spacing(1),
-    backgroundColor: '#2a2a2a',
-    color: '#d1d1d1',
-    fontSize: '0.75rem',
-    '&::-webkit-scrollbar': {
-        width: '6px',
-    },
-    '&::-webkit-scrollbar-track': {
-        backgroundColor: '#1a1a1a',
-    },
-    '&::-webkit-scrollbar-thumb': {
-        backgroundColor: '#404040',
-        borderRadius: '3px',
-    },
-}));
-
-const MessageBubble = styled(Paper)(({ theme, isUser }) => ({
-    padding: theme.spacing(0.75, 1),
-    backgroundColor: isUser ? '#404040' : '#333333',
-    color: '#d1d1d1',
-    borderRadius: theme.shape.borderRadius,
-    maxWidth: '80%',
-    wordBreak: 'break-word',
-    fontSize: '0.75rem',
-    boxShadow: 'none',
-    border: `1px solid ${isUser ? '#505050' : '#404040'}`,
-}));
-
-const InputContainer = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    padding: theme.spacing(0.75),
-    backgroundColor: '#2a2a2a',
-    borderTop: '1px solid #404040',
-    flexShrink: 0,
-}));
-
-const StyledTextField = styled(TextField)(({ theme }) => ({
-    '& .MuiOutlinedInput-root': {
-        fontSize: '0.75rem',
-        backgroundColor: '#1a1a1a',
-        color: '#d1d1d1',
-        '& fieldset': {
-            borderColor: '#404040',
-        },
-        '&:hover fieldset': {
-            borderColor: '#505050',
-        },
-        '&.Mui-focused fieldset': {
-            borderColor: '#606060',
-        },
-    },
-    '& .MuiInputBase-input': {
-        color: '#d1d1d1',
-        fontSize: '0.75rem',
-        '&::placeholder': {
-            color: '#888888',
-            opacity: 1,
-        },
-    },
-}));
-
-const StyledAvatar = styled(Avatar)(({ theme, isUser }) => ({
-    width: 28,
-    height: 28,
-    fontSize: '0.75rem',
-    backgroundColor: isUser ? '#505050' : '#404040',
-    color: '#d1d1d1',
-    border: '1px solid #606060',
-}));
-
-const StyledIconButton = styled(IconButton)(({ theme }) => ({
-    color: '#d1d1d1',
-    fontSize: '0.75rem',
-    '&:hover': {
-        backgroundColor: '#404040',
-    },
-    '&.Mui-disabled': {
-        color: '#666666',
-    },
-}));
-
-const TypingIndicator = styled(Paper)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    padding: theme.spacing(0.5, 1),
-    backgroundColor: '#333333',
-    color: '#d1d1d1',
-    borderRadius: theme.shape.borderRadius,
-    fontSize: '0.75rem',
-    boxShadow: 'none',
-    border: '1px solid #404040',
-}));
-
-const Chat = ({
-  userAvatar,
-  assistantAvatar,
-  chatTitle = "",
-}) => {
-    const [messages, setMessages] = useState([
-        {'role': 'assistant', 'content': 'What questions do you have?'}
-    ]);
-    const updateDelay = 2000;
-    const [isReplying, setIsReplying] = useState(false);
-    const [currentMessage, setCurrentMessage] = useState('');
-    const theme = useTheme();
-    const messageContainerRef = useRef(null);
-    const pollRef = useRef(null);
-    const [waitingMessage, setWaitingMessage] = useState('Just a second...');
-
-    const onSendMessage = () => {
-        setMessages((messages) => [...messages, {'role': 'user', 'content': currentMessage}]);
-        setIsReplying(true);
-    };
-
-    const handleSendMessage = (e) => {
-        e.preventDefault();
-        if (currentMessage.trim() && onSendMessage && !isReplying) {
-            onSendMessage(currentMessage.trim());
-            setCurrentMessage('');
-        }
-    };
-
-    const defaultUserAvatar = userAvatar || (
-        <StyledAvatar isUser={true}>
-            <VscPerson fontSize="small" />
-        </StyledAvatar>
-    );
-    
-    const defaultAssistantAvatar = assistantAvatar || (
-        <StyledAvatar isUser={false}>
-            <GiRobotGolem fontSize="small" />
-        </StyledAvatar>
-    );
-
-    const pollingCallback = () => {
-        const sampleResponses = [
-            'Searching the archives..',
-            'Investigating the metadata..',
-            'Formulating a response..',
-            'Digesting the data..'
-        ];
-        setWaitingMessage(sampleResponses[Math.floor(Math.random() * sampleResponses.length)]);
-        if (Math.random() < 0.5) {
-            setIsReplying(false);
-            setMessages(messages => [...messages, {'role': 'assistant', 'content': 'example reply'}]);
-        }
-    };
-
-    useEffect(() => {
-        const startPolling = () => {
-            pollRef.current = setInterval(pollingCallback, updateDelay);
-        };
-
-        const stopPolling = () => {
-            clearInterval(pollRef.current);
-        };
-
-        if (isReplying) {
-            startPolling();
-        } else {
-            stopPolling();
-        }
-
-        return () => {
-            stopPolling();
-        };
-
-    }, [isReplying]);
-
-    // Auto-scroll to bottom when new messages are added
-    useEffect(() => {
-        if (messageContainerRef.current) {
-            messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
-        }
-    }, [messages, isReplying]);
-
-    return (
-        <ChatPaper>
-            <Stack sx={{ height: '100%' }}>
-                {/* Message Area */}
-                <MessageContainer ref={messageContainerRef}>
-                    {messages.length === 0 && !isReplying ? (
-                         <Typography 
-                             variant="body2" 
-                             sx={{ 
-                                 color: '#888888', 
-                                 textAlign: 'center', 
-                                 mt: 2,
-                                 fontSize: '0.75rem'
-                             }}
-                         >
-                            No messages yet. Start the conversation!
-                         </Typography>
-                    ) : (
-                       messages.map((msg, index) => (
-                         <Box
-                           key={index}
-                           sx={{
-                             display: 'flex',
-                             justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                             mb: 1,
-                             alignItems: 'flex-end',
-                           }}
-                         >
-                           {msg.role === 'assistant' && (
-                             <Box sx={{ mr: 1, alignSelf: 'flex-start' }}>
-                                 {defaultAssistantAvatar}
-                             </Box>
-                           )}
-                           <MessageBubble isUser={msg.role === 'user'}>
-                             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                                 {msg.content}
-                             </Typography>
-                           </MessageBubble>
-                           {msg.role === 'user' && (
-                             <Box sx={{ ml: 1, alignSelf: 'flex-start' }}>
-                                 {defaultUserAvatar}
-                             </Box>
-                           )}
-                         </Box>
-                       ))
-                    )}
-                    
-                    {/* Typing Indicator */}
-                    {isReplying && (
-                      <Box sx={{ 
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'flex-start',
-                          mt: 1,
-                          mb: 1,
-                        }}
-                        >
-                        <Box sx={{ mr: 1 }}>{defaultAssistantAvatar}</Box>
-                        <TypingIndicator>
-                          <CircularProgress 
-                              size={12} 
-                              sx={{ mr: 1, color: '#d1d1d1' }} 
-                          />
-                          <Typography sx={{ fontSize: '0.75rem' }}>
-                              {waitingMessage}
-                          </Typography>
-                        </TypingIndicator>
-                      </Box>
-                    )}
-                </MessageContainer>
-
-                {/* Input Area */}
-                <InputContainer
-                    component="form"
-                    onSubmit={handleSendMessage}
-                >
-                    <StyledTextField
-                      variant="outlined"
-                      size="small"
-                      fullWidth
-                      placeholder={isReplying ? "Waiting for response..." : "Ask about current events..."}
-                      value={currentMessage}
-                      onChange={(e) => setCurrentMessage(e.target.value)}
-                      sx={{ mr: 1 }}
-                      autoComplete="off"
-                      disabled={isReplying}
-                    />
-                    <StyledIconButton 
-                        type="submit" 
-                        disabled={!currentMessage.trim() || isReplying}
-                        size="small"
-                    >
-                      <SendIcon fontSize="small" />
-                    </StyledIconButton>
-                </InputContainer>
-            </Stack>
-        </ChatPaper>
-    );
+// Helper to only use the text field for context
+function articleToContextString(article) {
+  const text = article.text && article.text.trim();
+  let parts = [];
+  if (text) parts.push(`TEXT: ${text}`);
+  if (article.snippet) parts.push(`SNIPPET: ${article.snippet}`);
+  if (article.publishedDate || article.date) parts.push(`DATE: ${article.publishedDate || article.date}`);
+  if (article.url) parts.push(`URL: ${article.url}`);
+  return parts.join('\n');
 }
+
+const Chat = ({ fetchNews, sendMessage, rerankEmbed, crossEncode, setContextArticles }) => {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+    const userMessage = input;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
+
+    try {
+      // 1. Fetch news articles
+      const newsResult = await fetchNews(userMessage);
+
+      let articlesForTable = [];
+      let articlesForPrompt = [];
+
+      // LOG: Number of articles returned from news API
+      console.log("newsResult.articles.length:", newsResult.articles.length, newsResult.articles);
+
+      if (newsResult.status === 'success' && Array.isArray(newsResult.articles) && newsResult.articles.length > 0) {
+        // Prepare articles: only keep those with at least text/snippet/title
+        const filteredArticles = newsResult.articles.filter(
+          a =>
+            (a.text && a.text.trim()) ||
+            (a.title && a.title.trim()) ||
+            (a.snippet && a.snippet.trim())
+        );
+        // LOG: Number of filtered articles
+        console.log("filteredArticles.length:", filteredArticles.length, filteredArticles);
+
+        // Use crossEncode to rank, but use FULL article for prompt
+        let topIndexes = [];
+        if (filteredArticles.length > 0) {
+          const docTexts = filteredArticles.map(
+            a => [a.title, a.text, a.snippet].filter(Boolean).join(' ')
+          );
+          // LOG: Number of docTexts to reranker
+          console.log("docTexts.length:", docTexts.length, docTexts);
+
+          // Log before crossEncode call
+          console.log("About to call crossEncode with docTexts.length:", docTexts.length);
+
+          let crossRes;
+          try {
+            crossRes = await crossEncode(userMessage, docTexts);
+            console.log("crossRes FULL RESPONSE:", crossRes);
+            console.log("crossRes.length:", crossRes?.length, crossRes);
+          } catch (crossError) {
+            console.error("crossEncode ERROR:", crossError);
+            throw crossError; // re-throw to outer catch
+          }
+
+          if (crossRes && Array.isArray(crossRes)) {
+            topIndexes = crossRes
+              .map((score, i) => ({ score, i }))
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 10)
+              .map(obj => obj.i);
+            // LOG: Indexes of top reranked articles
+            console.log("topIndexes:", topIndexes);
+          } else {
+            topIndexes = [0, 1, 2].filter(idx => idx < filteredArticles.length);
+            console.log("Fallback topIndexes:", topIndexes);
+          }
+        }
+
+        articlesForTable = topIndexes.map(idx => filteredArticles[idx]).filter(Boolean);
+        // LOG: Number and content of articles selected for context table
+        console.log("articlesForTable.length:", articlesForTable.length, articlesForTable);
+
+        articlesForPrompt = articlesForTable.map(articleToContextString);
+        // LOG: Number and preview of articles used in prompt
+        console.log("articlesForPrompt.length:", articlesForPrompt.length, articlesForPrompt);
+      }
+
+      setContextArticles(articlesForTable);
+
+      // 3. Send prompt with full-article context
+      // LOG: The final prompt sent to the LLM
+      if (articlesForPrompt && articlesForPrompt.length > 0) {
+        const prompt = `ARTICLES:\n\n${articlesForPrompt.join('\n\n---\n\n')}\n\n---\n\n${userMessage}`;
+        console.log("[sendMessage] Final prompt sent to Gemini:", prompt);
+      } else {
+        console.log("[sendMessage] Final prompt sent to Gemini:", userMessage);
+      }
+
+      const aiResponse = await sendMessage(userMessage, articlesForPrompt);
+
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: aiResponse.response || aiResponse.message }
+      ]);
+    } catch (error) {
+      console.error("Full error details:", error); // ENHANCED ERROR LOGGING
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'An error occurred.', error: true }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Paper elevation={0} sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Messages area */}
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        <List>
+          {messages.map((message, index) => (
+            <React.Fragment key={index}>
+              {index > 0 && <Divider variant="middle" sx={{ my: 1 }} />}
+              <ListItem alignItems="flex-start" sx={{
+                flexDirection: 'column',
+                alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
+              }}>
+                <Box sx={{
+                  display: 'flex',
+                  maxWidth: '80%',
+                  mb: 0.5
+                }}>
+                  {message.role === 'assistant' ? (
+                    <Avatar
+                      sx={{ width: 28, height: 28, mr: 1, bgcolor: 'secondary.dark' }}
+                    >
+                      <BsRobot fontSize="small" />
+                    </Avatar>
+                  ) : (
+                    <Avatar
+                      sx={{ width: 28, height: 28, ml: 1, order: 2, bgcolor: 'primary.dark' }}
+                    >
+                      <BsPersonWorkspace fontSize="small" />
+                    </Avatar>
+                  )}
+                  <Box sx={{ order: message.role === 'user' ? 1 : 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {message.role === 'user' ? 'You' : 'AI Assistant'}
+                    </Typography>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: message.role === 'user'
+                          ? 'primary.dark'
+                          : message.error
+                            ? 'error.dark'
+                            : 'background.paper',
+                        border: '1px solid',
+                        borderColor: message.role === 'user'
+                          ? 'primary.main'
+                          : message.error
+                            ? 'error.main'
+                            : 'divider'
+                      }}
+                    >
+                      {message.role === 'assistant' ? (
+                        <Box sx={{
+                          '& p': { m: 0, mb: 1 },
+                          '& p:last-child': { mb: 0 },
+                          '& a': { color: 'primary.light' },
+                          '& ul, & ol': { pl: 2, mb: 1, mt: 0.5 },
+                          '& code': {
+                            bgcolor: 'rgba(0, 0, 0, 0.2)',
+                            px: 0.5,
+                            py: 0.25,
+                            borderRadius: 0.5,
+                            fontFamily: 'monospace'
+                          },
+                          '& pre': {
+                            bgcolor: 'rgba(0, 0, 0, 0.2)',
+                            p: 1,
+                            borderRadius: 1,
+                            overflow: 'auto',
+                            fontFamily: 'monospace'
+                          }
+                        }}>
+                          <ReactMarkdown>
+                            {message.content}
+                          </ReactMarkdown>
+                        </Box>
+                      ) : (
+                        <Typography variant="body1">{message.content}</Typography>
+                      )}
+                    </Paper>
+                  </Box>
+                </Box>
+              </ListItem>
+            </React.Fragment>
+          ))}
+          <div ref={messagesEndRef} />
+        </List>
+        {loading && (
+          <Box display="flex" alignItems="center" justifyContent="center" my={2}>
+            <CircularProgress size={20} />
+            <Typography variant="body2" color="text.secondary" ml={1}>
+              Thinking...
+            </Typography>
+          </Box>
+        )}
+      </Box>
+      {/* Input area */}
+      <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <TextField
+          fullWidth
+          placeholder="Ask about current events..."
+          variant="outlined"
+          size="small"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage();
+            }
+          }}
+          disabled={loading}
+          multiline
+          maxRows={4}
+          InputProps={{
+            endAdornment: (
+              <Button
+                color="primary"
+                size="small"
+                onClick={handleSendMessage}
+                disabled={!input.trim() || loading}
+                sx={{ minWidth: 40 }}
+              >
+                <SendIcon />
+              </Button>
+            ),
+          }}
+        />
+      </Box>
+    </Paper>
+  );
+};
 
 export default Chat;

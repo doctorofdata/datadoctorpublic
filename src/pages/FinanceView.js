@@ -207,12 +207,6 @@ const FinanceView = () => {
 
                         <Grid container spacing={3}>
                             <Grid item xs={12}>
-                                <PromptFormatting prompt={formattedPrompt} />
-                            </Grid>
-                        </Grid>
-
-                        <Grid container spacing={3}>
-                            <Grid item xs={12}>
                                 <AIChat
                                     onAskAI={handleAskAI}
                                     response={response}
@@ -221,6 +215,7 @@ const FinanceView = () => {
                                     expanded={expanded}
                                     setExpanded={setExpanded}
                                 />
+                                <PromptFormatting prompt={formattedPrompt} />
                             </Grid>
                         </Grid>
 
