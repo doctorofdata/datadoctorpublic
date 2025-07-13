@@ -22,68 +22,114 @@ const COLORS = [
 
 const formatCurrency = (num) =>
   typeof num === 'number'
-    ? num.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
+    ? num.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     : '-';
 
-const RecentPricesChart = ({ prices, tickers }) => {
-  if (
-    !Array.isArray(prices) ||
-    prices.length === 0 ||
-    !Array.isArray(tickers) ||
-    tickers.length === 0
-  ) {
-    return null;
-  }
+// Fix by directly mapping stockData.prices to prices
+const RecentPricesChart = ({ stockData, tickers }) => {
+  const prices = stockData?.prices || [];
 
-  // Normalize tickers to uppercase for matching
-  const inputTickers = tickers.map(t => t.toUpperCase());
-  const responseTickers = Array.from(new Set(prices.map(r => (r.ticker || '').toUpperCase())));
-  const allDates = Array.from(new Set(prices.map(row => row.Date))).sort();
-
-  // Build a lookup: { [ticker]: { [Date]: Close } }
-  const priceMap = {};
-  inputTickers.forEach(ticker => {
-    priceMap[ticker] = {};
-  });
-  prices.forEach(row => {
-    const tickerKey = (row.ticker || '').toUpperCase();
-    if (priceMap[tickerKey]) {
-      priceMap[tickerKey][row.Date] = typeof row.Close === 'number' ? row.Close : Number(row.Close);
-    }
-  });
-
-  const datasets = inputTickers.map((ticker, idx) => ({
-    label: ticker,
-    data: allDates.map(date => {
-      const val = priceMap[ticker][date];
-      return typeof val === 'number' && !isNaN(val) ? val : null;
-    }),
-    borderColor: COLORS[idx % COLORS.length],
-    backgroundColor: 'rgba(30,144,255,0.07)',
-    borderWidth: 2,
-    fill: false,
-    tension: 0.15,
-    pointRadius: 0,
-    pointHoverRadius: 3
-  }));
-
-  const formatDate = (dateString) =>
-    new Date(dateString).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-  const labels = allDates.map(formatDate);
-
-  const hasData = datasets.some(ds => ds.data.some(val => typeof val === 'number'));
-  if (!hasData) {
+  // If no price data is provided
+  if (!Array.isArray(prices) || prices.length === 0) {
     return (
       <Paper sx={{ mt: 2, p: 2, bgcolor: 'background.paper' }}>
         <Typography variant="body1" color="text.secondary">
-          No price data available for the selected assets.
+          No stock data available to display.
+        </Typography>
+      </Paper>
+    );
+  }
+  
+  // Determine what type of data we have
+  const firstItem = prices[0];
+  
+  // Check if it's stock price data
+  const hasStockPriceData = 
+    firstItem && 
+    ('Close' in firstItem || 'close' in firstItem) && 
+    ('ticker' in firstItem || 'symbol' in firstItem || 'Symbol' in firstItem);
+
+  if (!hasStockPriceData) {
+    return (
+      <Paper sx={{ mt: 2, p: 2, bgcolor: 'background.paper' }}>
+        <Typography variant="body1" color="text.secondary">
+          Data format does not match expected stock price data.
         </Typography>
       </Paper>
     );
   }
 
-  const chartData = { labels, datasets };
-
+  // Process stock price data - create a chart for each ticker
+  const closeField = 'Close' in firstItem ? 'Close' : 'close';
+  const dateField = 'Date' in firstItem ? 'Date' : 'date';
+  const tickerField = 'ticker' in firstItem ? 'ticker' : 
+                      'symbol' in firstItem ? 'symbol' :
+                      'Symbol' in firstItem ? 'Symbol' : 'ticker';
+  
+  // Group data by ticker
+  const pricesByTicker = {};
+  prices.forEach(item => {
+    const ticker = item[tickerField];
+    if (!ticker) return;
+    
+    if (!pricesByTicker[ticker]) {
+      pricesByTicker[ticker] = [];
+    }
+    pricesByTicker[ticker].push({
+      date: item[dateField],
+      price: parseFloat(item[closeField])
+    });
+  });
+  
+  // Get unique dates across all tickers
+  const allDates = new Set();
+  Object.values(pricesByTicker).forEach(data => {
+    data.forEach(point => allDates.add(point.date));
+  });
+  
+  const sortedDates = Array.from(allDates).sort();
+  
+  // Create chart datasets for each ticker
+  const datasets = Object.entries(pricesByTicker).map(([ticker, data], index) => {
+    const dateMap = {};
+    data.forEach(point => {
+      dateMap[point.date] = point.price;
+    });
+    
+    return {
+      label: ticker,
+      data: sortedDates.map(date => dateMap[date] || null),
+      borderColor: COLORS[index % COLORS.length],
+      backgroundColor: 'rgba(0,0,0,0.05)',
+      borderWidth: 2,
+      fill: false,
+      tension: 0.1,
+      pointRadius: 0,
+      pointHoverRadius: 3
+    };
+  });
+  
+  // Format dates for display
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+    } catch (e) {
+      return dateString;
+    }
+  };
+  
+  const chartData = {
+    labels: sortedDates.map(formatDate),
+    datasets: datasets
+  };
+  
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -116,7 +162,7 @@ const RecentPricesChart = ({ prices, tickers }) => {
         ticks: {
           color: '#8b949e',
           font: { size: 11, family: '"Inter", sans-serif' },
-          maxTicksLimit: 18
+          maxTicksLimit: 12
         }
       },
       y: {
@@ -130,7 +176,7 @@ const RecentPricesChart = ({ prices, tickers }) => {
     },
     interaction: { intersect: false, mode: 'index' }
   };
-
+  
   return (
     <Paper sx={{
       mt: 2,
@@ -150,7 +196,7 @@ const RecentPricesChart = ({ prices, tickers }) => {
           color: 'text.primary'
         }}
       >
-        Asset Pricing History (18 Months)
+        Stock Price History
       </Typography>
       <Box sx={{ height: 400, width: '100%' }}>
         <Line data={chartData} options={chartOptions} />

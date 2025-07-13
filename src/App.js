@@ -13,12 +13,13 @@ import HomePage from './pages/Home';
 import Blog from './pages/Blog';
 import FinanceView from './pages/FinanceView'
 
+// Configure Amplify to point to AWS API Gateway
 const config = {
     API: {
         endpoints: [
             {
                 name: "theDataDojo",
-                endpoint: "http://127.0.0.1:5000"
+                endpoint: "https://405k8e3dk2.execute-api.us-east-1.amazonaws.com/prod"
             }
         ]
     }
@@ -58,7 +59,6 @@ let theme = createTheme({
 theme = responsiveFontSizes(theme);
 
 function App() {
-
     return (
         <ThemeProvider theme = {theme}>
             <div className = "App">

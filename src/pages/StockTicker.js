@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, CircularProgress, Alert, Card, CardContent } from '@mui/material';
+import { ENDPOINTS, USE_AWS_BACKEND } from '../config/api-config';
+import { callTickers } from '../hooks/callTickers';
 
 const StockTicker = ({ tickers = [] }) => {
   const [prices, setPrices] = useState([]);
@@ -12,25 +14,73 @@ const StockTicker = ({ tickers = [] }) => {
       setErrors([]);
       return;
     }
+    
     setLoading(true);
     setPrices([]);
     setErrors([]);
-    fetch(`http://localhost:5000/quote?tickers=${tickers.join(',')}`)
-      .then(res => res.json())
-      .then(data => {
+    
+    const fetchTickerData = async () => {
+      try {
+        const data = await callTickers(tickers.join(','));
+        
+        console.log('StockTicker received data:', data);
+        
         if (data.status !== 'success') {
           setErrors([data.message || 'Failed to fetch stock data.']);
           setPrices([]);
+        } else if (data.results && Array.isArray(data.results)) {
+          // Inspect the actual data structure
+          console.log('StockTicker results sample:', data.results.slice(0, 2));
+          console.log('First result fields:', data.results[0] ? Object.keys(data.results[0]) : 'No results');
+          
+          // Process all results and be flexible about field names
+          const processedPrices = data.results.map(r => {
+            // Extract price with fallbacks for different field names
+            const price = r.price !== undefined ? r.price : 
+                         r.Close !== undefined ? r.Close :
+                         r.close !== undefined ? r.close : 
+                         r.last !== undefined ? r.last : 0;
+            
+            // Extract change with fallbacks
+            const change = r.change !== undefined ? r.change :
+                          r.Change !== undefined ? r.Change : 0;
+            
+            // Extract percent with fallbacks
+            const percent = r.percent !== undefined ? r.percent :
+                           r.Percent !== undefined ? r.Percent :
+                           r.percent_change !== undefined ? r.percent_change : 0;
+            
+            return {
+              ticker: r.ticker || r.symbol || r.Symbol || 'Unknown',
+              price: typeof price === 'number' ? price : parseFloat(price) || 0,
+              change: typeof change === 'number' ? change : parseFloat(change) || 0,
+              percent: typeof percent === 'number' ? percent : parseFloat(percent) || 0,
+              hasError: !price && price !== 0
+            };
+          });
+          
+          console.log('StockTicker processed prices:', processedPrices);
+          
+          // Separate valid prices and errors
+          const validPrices = processedPrices.filter(p => !p.hasError);
+          const errorResults = processedPrices.filter(p => p.hasError);
+          
+          setErrors(errorResults.map(r => `${r.ticker}: Missing price data`));
+          setPrices(validPrices);
         } else {
-          setErrors(data.results.filter(r => r.error).map(r => `${r.ticker}: ${r.error}`));
-          setPrices(data.results.filter(r => !r.error));
+          setErrors(['Invalid response format from server']);
+          setPrices([]);
         }
-      })
-      .catch(() => {
+      } catch (error) {
+        console.error('StockTicker fetch error:', error);
         setErrors(['Could not connect to backend.']);
         setPrices([]);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTickerData();
   }, [tickers]);
 
   if (!tickers.length) {
@@ -74,14 +124,14 @@ const StockTicker = ({ tickers = [] }) => {
       alignItems: 'center'
     }}>
       <Typography 
-                      variant="h6" 
-                      gutterBottom 
-                      sx={{ 
-                          mb: 2,
-                          fontWeight: 600,
-                          color: 'text.primary'
-                      }}
-                  >
+        variant="h6" 
+        gutterBottom 
+        sx={{ 
+            mb: 2,
+            fontWeight: 600,
+            color: 'text.primary'
+        }}
+      >
         ⏱️ Latest 5-Min Pricing
       </Typography>
       

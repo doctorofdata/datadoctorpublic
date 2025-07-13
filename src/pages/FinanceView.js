@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Grid,
@@ -10,9 +10,57 @@ import NewsWidget from './NewsWidget';
 import AIChat from './AIChat';
 import PromptFormatting from './PromptFormatting';
 import StockTicker from './StockTicker';
+import { ENDPOINTS, USE_AWS_BACKEND } from '../config/api-config';
+
+async function fetchQuotes(tickers) {
+    if (USE_AWS_BACKEND) {
+        console.log('[fetchQuotes] Using AWS backend for tickers:', tickers);
+        try {
+            const response = await fetch(ENDPOINTS.TICKER_FEED, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json' 
+                },
+                body: JSON.stringify({ query: tickers.join(',') }) // Changed from 'tickers' to 'query'
+            });
+            
+            console.log('[fetchQuotes] AWS response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch quotes: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[fetchQuotes] AWS response data:', data);
+            return data;
+        } catch (error) {
+            console.error('[fetchQuotes] AWS error:', error);
+            throw error;
+        }
+    } else {
+        console.log('[fetchQuotes] Using local backend for tickers:', tickers);
+        const param = encodeURIComponent(tickers.join(','));
+        const url = `${ENDPOINTS.LOCAL.QUOTES}?tickers=${param}`;
+        
+        console.log('[fetchQuotes] Fetching from local URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch quotes');
+        }
+        
+        const data = await response.json();
+        console.log('[fetchQuotes] Local response data:', data);
+        return data;
+    }
+}
 
 const darkTheme = createTheme({
-
     palette: {
         mode: 'dark',
         primary: { main: '#8c7cf0' },
@@ -58,46 +106,83 @@ const FinanceView = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [expanded, setExpanded] = useState(false);
+    const [quotes, setQuotes] = useState([]);
+    const [quotesError, setQuotesError] = useState('');
+
+    useEffect(() => {
+        if (!currentTickers.length) return;
+        
+        console.log('Fetching quotes for:', currentTickers);
+        fetchQuotes(currentTickers)
+            .then(data => {
+                console.log('Quote response:', data);
+                if (data.status === 'success') {
+                    setQuotes(data.results);
+                    setQuotesError('');
+                } else {
+                    setQuotesError(data.message || "Error fetching quotes");
+                    console.error('Error in quote data:', data);
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching quotes:', err);
+                setQuotesError(err.message);
+            });
+    }, [currentTickers]);
 
     const handleTickersChange = (tickers) => {
         setCurrentTickers(tickers);
     };
 
     const handleAskAI = async () => {
+    console.log("Submitting prompt:", formattedPrompt);
 
-        console.log("Submitting prompt:", formattedPrompt);
+    setLoading(true);
+    setError('');
+    setResponse('');
+    
+    try {
+        console.log(`[handleAskAI] Calling ${ENDPOINTS.SEND_MESSAGE}`);
+        
+        const res = await fetch(ENDPOINTS.SEND_MESSAGE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: formattedPrompt,
+                tickers: currentTickers
+            })
+        });
 
-        setLoading(true);
-        setError('');
-        setResponse('');
-        try {
-            const res = await fetch('http://localhost:5000/ask', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: formattedPrompt,
-                    tickers: currentTickers
-                })
-            });
-
-            const result = await res.json();
-
-            if (result.status === 'success') {
-                setResponse(result.response);
-                setFormattedPrompt(result.formattedPrompt);
-                setExpanded(true);
-            } else {
-                setError(result.message || "AI call failed");
-                setExpanded(true);
-            }
-        } catch (error) {
-            setError('Failed to get AI response. Please try again.');
-            setExpanded(true);
-            console.error('Error getting AI response:', error);
-        } finally {
-            setLoading(false);
+        if (!res.ok) {
+            throw new Error(`API error! Status: ${res.status}`);
         }
-    };
+
+        const rawResult = await res.json();
+        console.log('[handleAskAI] Raw response:', rawResult);
+
+        // Handle AWS Lambda proxy integration format if needed
+        const result = rawResult.body 
+            ? (typeof rawResult.body === 'string' ? JSON.parse(rawResult.body) : rawResult.body)
+            : rawResult;
+
+        if (result.status === 'success') {
+            setResponse(result.response);
+            if (result.formattedPrompt) {
+                setFormattedPrompt(result.formattedPrompt);
+            }
+            setExpanded(true);
+        } else {
+            setError(result.message || "AI call failed");
+            setExpanded(true);
+        }
+    } catch (error) {
+        setError('Failed to get AI response. Please try again.');
+        setExpanded(true);
+        console.error('Error getting AI response:', error);
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <ThemeProvider theme={darkTheme}>
@@ -116,16 +201,7 @@ const FinanceView = () => {
                     >
                         <Grid container spacing={3}>
                             <Grid item xs={12}>
-                                <ParentComponent onTickersChange={handleTickersChange} />
-                            </Grid>
-                        </Grid>
-
-                        <Grid container spacing={3}>
-                            <Grid item xs={12}>
-                                <NewsWidget 
-                                    tickers={currentTickers}
-                                    setFormattedPrompt={setFormattedPrompt}
-                                />
+                                <ParentComponent onTickersChange={handleTickersChange} setFormattedPrompt={setFormattedPrompt} />
                             </Grid>
                         </Grid>
 
@@ -147,6 +223,7 @@ const FinanceView = () => {
                                 />
                             </Grid>
                         </Grid>
+
                     </Box>
                 }
             />
