@@ -13,13 +13,11 @@ import DetailedStockDataWidget from './DetailedStockDataWidget';
 import PerformanceChart from './PerformanceChart';
 import StockTicker from './StockTicker';
 import RecentPricesChart from './RecentPricesChart';
-// REMOVE this import, since we'll remove the NewsWidget here
-// import NewsWidget from './NewsWidget';
 import { callStockData } from '../hooks/callStockData';
 import { callFetchNews } from '../hooks/callNews';
 import { ENDPOINTS } from '../config/api-config';
 
-const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
+const ParentComponent = ({ onTickersChange }) => {
     const [data, setData] = useState(null);
     const [chartPrices, setChartPrices] = useState([]);
     const [stockPrices, setStockPrices] = useState([]);
@@ -170,34 +168,10 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
 
         // 2. Fetch news
         if (tickerArray.length) {
-            setNewsLoading(true);
+            setNewsLoading(false);
             setNewsError(null);
-            let newsResult = null;
-            try {
-                newsResult = await callFetchNews(tickerArray.join(','));
-                if (
-                    newsResult &&
-                    (newsResult.status === 'success' || newsResult.statusCode === 200) &&
-                    Array.isArray(newsResult.articles)
-                ) {
-                    setNews(newsResult.articles);
-                    setNewsError(null);
-                } else if (newsResult && newsResult.status === 'error') {
-                    setNews([]);
-                    setNewsError(newsResult.message || 'Failed to fetch news.');
-                } else {
-                    setNews([]);
-                    setNewsError('Failed to fetch news.');
-                }
-            } catch (err) {
-                setNews([]);
-                setNewsError('Failed to fetch news: ' + (err.message || err));
-            } finally {
-                setNewsLoading(false);
-
-            }
         }
-    };
+    }; // <--- Properly close the function here
 
     return (
         <Box sx={{
@@ -344,29 +318,20 @@ const ParentComponent = ({ onTickersChange, setFormattedPrompt }) => {
                 </Paper>
             )}
 
-            {/* REMOVE: NewsWidget from here */}
-            {/* {showNewsWidget && (
-                <NewsWidget
-                    tickers={currentTickers}
-                    articles={news}
-                    loading={newsLoading}
-                    error={newsError}
-                />
-            )} */}
-            <Box sx={{ mb: 4 }} /> {/* This adds space after NewsWidget */}
+            <Box sx={{ mb: 4 }} />
             {data && data.out && (
-                    <Stack spacing={3}>
-                        <DetailedStockDataWidget stockData={data} />
-                        <PerformanceChart stockData={data} />
-                        <StockTicker tickers={currentTickers} />
-                        <RecentPricesChart 
-                            prices={data.prices} 
-                            stockData={data} 
-                            data={data}
-                            tickers={currentTickers} 
-                        />
-                    </Stack>
-                )}
+                <Stack spacing={3}>
+                    <DetailedStockDataWidget stockData={data} />
+                    <PerformanceChart stockData={data} />
+                    <StockTicker tickers={currentTickers} />
+                    <RecentPricesChart 
+                        prices={data.prices} 
+                        stockData={data} 
+                        data={data}
+                        tickers={currentTickers} 
+                    />
+                </Stack>
+            )}
         </Box>
     );
 };
