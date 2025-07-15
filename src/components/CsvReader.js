@@ -136,16 +136,6 @@ const CsvReader = ({ csvUrl = '/data/prompts.csv' }) => {
             <Box>
                 <Stack direction="row" alignItems="center" spacing={1}>
                     <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>Prompt:</Typography>
-                    <Tooltip title={copied ? "Copied!" : "Copy prompt"}>
-                        <IconButton
-                            aria-label="Copy prompt"
-                            size="small"
-                            onClick={() => handleCopy(prompt)}
-                            sx={{ ml: -1 }}
-                        >
-                            <ContentCopy fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
                 </Stack>
                 <Paper variant="outlined" sx={{
                     p: 2,
@@ -186,6 +176,17 @@ const CsvReader = ({ csvUrl = '/data/prompts.csv' }) => {
                 <IconButton onClick={() => setCurrentIndex(i => Math.min(i + 1, rows.length - 1))} disabled={currentIndex >= rows.length - 1}>
                     <ArrowForward />
                 </IconButton>
+
+                <Tooltip title={copied ? "Copied!" : "Copy prompt"}>
+                        <IconButton
+                            aria-label="Copy prompt"
+                            size="small"
+                            onClick={() => handleCopy(prompt)}
+                            sx={{ ml: -1 }}
+                        >
+                            <ContentCopy fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
             </Stack>
         </Paper>
     );
