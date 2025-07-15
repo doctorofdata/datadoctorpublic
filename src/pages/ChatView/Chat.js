@@ -27,7 +27,7 @@ function articleToContextString(article) {
 }
 
 // Limit the number of articles per ticker symbol BEFORE reranking
-const MAX_ARTICLES_PER_TICKER = 3; // <-- change this value as needed
+const MAX_ARTICLES_PER_TICKER = 10; // <-- change this value as needed
 
 function limitArticlesPerTicker(articles, maxPerTicker) {
   const grouped = {};

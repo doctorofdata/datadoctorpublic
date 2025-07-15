@@ -54,7 +54,7 @@ export const sendMessage = async (message, articles = []) => {
   // Format prompt exactly as in PromptFormatting.js
   let prompt = message;
   if (articles && articles.length > 0) {
-    prompt = `ARTICLES:\n\n${articles.join('\n\n---\n\n')}\n\n---\n\n${message}`;
+    prompt = `You are an educated assistant with access to the metadata for New York Times publishing. Use the context retrieved from this source to help you answer the input question. Context:\n\n${articles.join('\n\n---\n\n')}\n\n---\n\nInput Question: ${message}`;
   }
   // Print the prompt to the console
   console.log("[sendMessage] Final prompt sent to Gemini:", prompt);
@@ -288,6 +288,32 @@ const ReRankingCard = () => (
   </StyledCard>
 );
 
+const NYTApiInfoCard = () => (
+  <StyledCard>
+    <CardContent>
+      <Typography variant="h6" component="div" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
+        Using the New York Times Python API
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, mb: 2 }}>
+        The New York Times provides a robust set of RESTful APIs to access news content, including the Article Search API, Top Stories API, and others.
+        In this application, we have leveraged these APIs to collect two years worth of all metadata from all articles and stored them in a neo4j database for access.
+        The app retrieves structured metadata such as headlines, publication dates, and snippets, which are then used as context for LLM responses.
+        <br /><br />
+        You can explore or register for access at:{" "}
+        <Link 
+          href="https://developer.nytimes.com/apis" 
+          target="_blank" 
+          rel="noopener" 
+          underline="hover" 
+          color="secondary"
+        >
+          developer.nytimes.com/apis
+        </Link>
+      </Typography>
+    </CardContent>
+  </StyledCard>
+);
+
 const ChatPanel = ({ setContextArticles }) => (
   <StyledPaper elevation={0}>
     <SectionHeader variant="h6">
@@ -332,7 +358,8 @@ const Page = () => {
         </Grid>
         <Grid item xs={12} md={8} sx={{ height: '100%' }}>
           <Stack spacing={2} sx={{ height: '100%', overflowY: 'auto', pr: 1 }}>
-            <ChatPanel setContextArticles={setContextArticles} />
+             <NYTApiInfoCard/>
+             <ChatPanel setContextArticles={setContextArticles} />
             <ContextPanel articles={contextArticles} />
           </Stack>
         </Grid>
