@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { ArrowBack, ArrowForward, ContentCopy } from '@mui/icons-material';
 
-// --- Async Fetch and Parse CSV using PapaParse ---
+// Async Fetch and Parse CSV using PapaParse
 async function fetchAndParseCSV(url) {
   try {
     const response = await fetch(url);
@@ -24,7 +24,7 @@ async function fetchAndParseCSV(url) {
     if (csvText.charCodeAt(0) === 0xFEFF) {
       csvText = csvText.slice(1);
     }
-    // Normalize all line endings to \n just in case
+    // Normalize line endings
     csvText = csvText.replace(/\r\n|\r/g, '\n');
     // Use PapaParse for robust parsing
     const result = Papa.parse(csvText, {
@@ -41,7 +41,7 @@ async function fetchAndParseCSV(url) {
   }
 }
 
-// --- Hook using the async fetch-and-parse function ---
+// Hook using the async fetch-and-parse function
 function useCsvRows(csvUrl) {
     const [rows, setRows] = useState([]);
     const [error, setError] = useState(null);
@@ -87,8 +87,8 @@ const copyToClipboard = async (text) => {
     }
 };
 
-const CsvReader = () => {
-    const { rows, error, loading } = useCsvRows('/data/prompts.csv');
+const CsvReader = ({ csvUrl = '/data/prompts.csv' }) => {
+    const { rows, error, loading } = useCsvRows(csvUrl);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [copied, setCopied] = useState(false);
 

@@ -273,7 +273,7 @@ const Page = () => {
                         <EnhancedFineTuningCard />
                         <ModelPerformance />
                         <FineTunedPerformance />
-                        <CsvReader />
+                        <CsvReader csvUrl="https://raw.githubusercontent.com/doctorofdata/datadoctorpublic/main/public/data/prompts.csv"/>
                     </Stack>
                 </Grid>
                 <Grid item xs = {12} md = {7} sx = {{ height: '100%' }}>
