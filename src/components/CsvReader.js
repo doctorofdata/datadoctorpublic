@@ -8,70 +8,145 @@ import {
     IconButton,
     Box,
     CircularProgress,
-    Alert
+    Tooltip,
 } from '@mui/material';
-import { ArrowBack, ArrowForward } from '@mui/icons-material';
+import { ArrowBack, ArrowForward, ContentCopy } from '@mui/icons-material';
 
+// --- Async Fetch and Parse CSV using PapaParse ---
+async function fetchAndParseCSV(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    let csvText = await response.text();
+    // Remove BOM if present
+    if (csvText.charCodeAt(0) === 0xFEFF) {
+      csvText = csvText.slice(1);
+    }
+    // Normalize all line endings to \n just in case
+    csvText = csvText.replace(/\r\n|\r/g, '\n');
+    // Use PapaParse for robust parsing
+    const result = Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true,
+    });
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors.map(e => e.message).join("; "));
+    }
+    return result.data;
+  } catch (error) {
+    console.error("Error fetching or parsing CSV:", error);
+    return null;
+  }
+}
+
+// --- Hook using the async fetch-and-parse function ---
 function useCsvRows(csvUrl) {
     const [rows, setRows] = useState([]);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchAndParseCsv() {
-            try {
-                const response = await fetch(csvUrl);
-                if (!response.ok) {
-                    setError(`Failed to fetch CSV: ${response.status}`);
-                    setLoading(false);
-                    return;
-                }
-                const text = await response.text();
-                const results = Papa.parse(text, { header: true, skipEmptyLines: true });
-                // This cannot be stripped and will always display
-                window.__CSV_DEBUG__ = results.data;
-                setRows(results.data.map(row => ({
-                    prompt: (row.prompt ?? row['prompt'] ?? row['Prompt'] ?? '').trim(),
-                    output: (row.output ?? row['output'] ?? row['Output'] ?? '').trim(),
-                })).filter(row => row.prompt || row.output));
-                setLoading(false);
-            } catch (err) {
-                setError(err.message || 'Unknown error');
-                setLoading(false);
+        async function getRows() {
+            setLoading(true);
+            setError(null);
+            const data = await fetchAndParseCSV(csvUrl);
+            if (data === null) {
+                setError("Failed to fetch or parse CSV.");
+                setRows([]);
+            } else {
+                setRows(
+                    data
+                        .map(row => ({
+                            prompt: (row.prompt ?? row.Prompt ?? '').trim(),
+                            output: (row.output ?? row.Output ?? '').trim(),
+                        }))
+                        .filter(row => row.prompt || row.output)
+                );
             }
+            setLoading(false);
         }
-        fetchAndParseCsv();
+        getRows();
     }, [csvUrl]);
 
     return { rows, error, loading };
 }
 
+const copyToClipboard = async (text) => {
+    if (!text) return;
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (err) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
+};
+
 const CsvReader = () => {
     const { rows, error, loading } = useCsvRows('/data/prompts.csv');
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         if (rows.length === 0) setCurrentIndex(0);
         else if (currentIndex >= rows.length) setCurrentIndex(rows.length - 1);
     }, [rows, currentIndex]);
 
-    // DEFENSIVE: always show debug info on screen
     const { prompt = '', output = '' } = rows[currentIndex] || {};
+
+    const handleCopy = async (value) => {
+        await copyToClipboard(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+    };
+
+    if (loading) {
+        return (
+            <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ mt: 2 }}>Loading Prompts...</Typography>
+            </Paper>
+        );
+    }
+
+    if (error) {
+        return (
+            <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 4 }}>
+                <Typography color="error">{error}</Typography>
+            </Paper>
+        );
+    }
+
+    if (!rows.length) {
+        return (
+            <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 4 }}>
+                <Typography>No prompts found in the CSV.</Typography>
+            </Paper>
+        );
+    }
 
     return (
         <Paper elevation={0} sx={{ p: 3, borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ whiteSpace: 'pre-wrap', color: 'red', fontSize: '12px', wordBreak: 'break-all', mb: 2 }}>
-                DEBUG: {JSON.stringify({ rows, currentIndex, prompt, output, loading, error }, null, 2)}
-            </Box>
-            <Typography
-                variant="h6"
-                sx={{ fontWeight: 600, color: 'text.primary' }}
-                data-debug={JSON.stringify({ rows, currentIndex, prompt, output, loading, error })}
-            >
-                Prompt Navigator
-            </Typography>
+            {/* PROMPT SECTION */}
             <Box>
-                <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>Prompt:</Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>Prompt:</Typography>
+                    <Tooltip title={copied ? "Copied!" : "Copy prompt"}>
+                        <IconButton
+                            aria-label="Copy prompt"
+                            size="small"
+                            onClick={() => handleCopy(prompt)}
+                            sx={{ ml: -1 }}
+                        >
+                            <ContentCopy fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                </Stack>
                 <Paper variant="outlined" sx={{
                     p: 2,
                     bgcolor: 'background.default',
@@ -86,6 +161,7 @@ const CsvReader = () => {
                         : <Typography variant="body2" sx={{ color: 'text.disabled' }}>No prompt</Typography>}
                 </Paper>
             </Box>
+            {/* OUTPUT SECTION */}
             <Box>
                 <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>Output:</Typography>
                 <Paper variant="outlined" sx={{
