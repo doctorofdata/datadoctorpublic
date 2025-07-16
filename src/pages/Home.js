@@ -644,7 +644,7 @@ const Page = () => {
                   />
                   <Box>
                     <JobTitle>Senior Data Scientist</JobTitle>
-                    <JobDate>January 2022 - November 2024</JobDate>
+                    <JobDate>January 2022 - November 2022</JobDate>
                   </Box>
                 </StyledAccordionSummary>
                 <AccordionDetails sx={{ backgroundColor: 'rgba(0,0,0,0.5)', borderTop: '1px solid #333' }}>
