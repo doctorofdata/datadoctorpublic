@@ -18,7 +18,7 @@ import {
     Badge,
     Grid,
     Card,
-    CardContent
+    CardContent,
 } from '@mui/material';
 import { styled, createTheme, ThemeProvider } from '@mui/material/styles';
 import {
@@ -32,6 +32,10 @@ import {
     CheckCircle as CheckIcon,
     Error as ErrorIcon,
     Speed as SpeedIcon,
+    Info as InfoIcon,
+    AutoGraph as AutoGraphIcon,
+    BubbleChart as BubbleChartIcon,
+    Timeline as TimelineIcon,
 } from '@mui/icons-material';
 import { CopyBlock } from 'react-code-blocks';
 import DashboardFrame from 'components/DashboardFrame';
@@ -96,46 +100,6 @@ const SectionHeader = styled(Typography)(({ theme }) => ({
 }));
 
 // --- UI COMPONENTS ---
-
-const FineTunedPerformance = ({ onMetricClick }) => {
-    const metrics = [{ label: 'BLEU Score', value: '87.3%', icon: <CheckIcon />, color: 'success.main' }, { label: 'Response Time', value: '2.1s', icon: <SpeedIcon />, color: 'info.main' }];
-    return (
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 4 }}>
-            <SectionHeader variant="h6">Fine-Tuned Model Performance</SectionHeader>
-            <Grid container spacing={2}>
-                {metrics.map((metric) => (
-                    <Grid item xs={6} key={metric.label}>
-                        <Card sx={{ bgcolor: 'background.default', p: 1, textAlign: 'center', borderRadius: 3 }}>
-                            <Avatar sx={{ bgcolor: metric.color, width: 32, height: 32, mx: 'auto', mb: 1 }}>{metric.icon}</Avatar>
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>{metric.value}</Typography>
-                            <Typography variant="caption" color="text.secondary">{metric.label}</Typography>
-                        </Card>
-                    </Grid>
-                ))}
-            </Grid>
-        </Paper>
-    );
-};
-
-const ModelPerformance = ({ onMetricClick }) => {
-    const metrics = [{ label: 'BLEU Score', value: '87.3%', icon: <CheckIcon />, color: 'success.main' }, { label: 'Response Time', value: '2.1s', icon: <SpeedIcon />, color: 'info.main' }];
-    return (
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 4 }}>
-            <SectionHeader variant="h6">Base Model Performance</SectionHeader>
-            <Grid container spacing={2}>
-                {metrics.map((metric) => (
-                    <Grid item xs={6} key={metric.label}>
-                        <Card sx={{ bgcolor: 'background.default', p: 1, textAlign: 'center', borderRadius: 3 }}>
-                            <Avatar sx={{ bgcolor: metric.color, width: 32, height: 32, mx: 'auto', mb: 1 }}>{metric.icon}</Avatar>
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>{metric.value}</Typography>
-                            <Typography variant="caption" color="text.secondary">{metric.label}</Typography>
-                        </Card>
-                    </Grid>
-                ))}
-            </Grid>
-        </Paper>
-    );
-};
 
 const QueryPanel = ({ onQuerySubmit, isLoading }) => {
     const [query, setQuery] = useState('');
@@ -233,7 +197,96 @@ const EnhancedFineTuningCard = () => (
     </Paper>
 );
 
-// --- MAIN PAGE --- 
+// --- NEW: Neo4j & Cypher Info Card ---
+
+const Neo4jCypherInfoCard = () => (
+    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, bgcolor: 'rgba(44, 80, 141, 0.25)' }}>
+        <Stack spacing={2}>
+            <SectionHeader variant="h6">
+                <AutoGraphIcon color="primary" fontSize="large" />
+                What is Neo4j and Cypher?
+            </SectionHeader>
+            <Typography variant="body1" color="text.primary">
+                <b>Neo4j</b> is a highly popular graph database that uses a property graph model to represent and store data. It’s designed for efficiently querying complex connected data, such as social networks, recommendations, or fraud detection.
+            </Typography>
+            <Typography variant="body1" color="text.primary">
+                <b>Cypher</b> is Neo4j’s expressive query language—similar to SQL, but designed for graphs! Cypher makes it easy to describe patterns like relationships between nodes, traversals, and data aggregation.
+            </Typography>
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" mt={2}>
+                <Avatar sx={{
+                    width: 56, height: 56, bgcolor: '#2a6bd4', boxShadow: '0 0 0 3px #8c7cf0', marginRight: 2,
+                }}>
+                    <BubbleChartIcon fontSize="large" />
+                </Avatar>
+                <Avatar sx={{
+                    width: 56, height: 56, bgcolor: '#8c7cf0', boxShadow: '0 0 0 3px #2a6bd4', marginLeft: 2,
+                }}>
+                    <TimelineIcon fontSize="large" />
+                </Avatar>
+            </Stack>
+        </Stack>
+    </Paper>
+);
+
+const CypherSyntaxQuickstartCard = () => (
+    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, bgcolor: 'rgba(140,124,240,0.12)' }}>
+        <Stack spacing={2}>
+            <SectionHeader variant="h6">
+                <InfoIcon color="secondary" fontSize="large" />
+                Cypher Syntax Quickstart
+            </SectionHeader>
+            <Typography variant="body2" color="text.primary">
+                Cypher queries use patterns to match nodes and relationships:
+            </Typography>
+            <SyntaxHighlighter language="cypher" style={atomOneDark} customStyle={{
+                background: '#22223b', borderRadius: '8px', padding: '12px', fontSize: '0.92rem'
+            }}>
+                {`// Find friends of Alice
+MATCH (a:Person {name: "Alice"})-[:FRIENDS_WITH]->(friend)
+RETURN friend.name
+                `}
+            </SyntaxHighlighter>
+            <Typography variant="body2" color="text.primary">
+                <b>Nodes</b> are in parentheses <code>(a:Label)</code>, relationships in brackets <code>-[r:TYPE]-></code>.
+            </Typography>
+            <Typography variant="body2" color="text.primary">
+                <b>Aggregate Example:</b>
+            </Typography>
+            <SyntaxHighlighter language="cypher" style={atomOneDark} customStyle={{
+                background: '#22223b', borderRadius: '8px', padding: '12px', fontSize: '0.92rem'
+            }}>
+                {`// Count purchases per user
+MATCH (u:User)-[:PURCHASED]->(p:Product)
+RETURN u.name, count(p) AS purchaseCount
+                `}
+            </SyntaxHighlighter>
+        </Stack>
+    </Paper>
+);
+
+// --- NEW: Prompt Navigator Info Card ---
+
+const PromptNavigatorInfoCard = () => (
+    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, bgcolor: 'rgba(3, 169, 244, 0.08)' }}>
+        <Stack spacing={2}>
+            <SectionHeader variant="h6">
+                <HistoryIcon color="secondary" fontSize="large" />
+                Prompt Navigator Guide
+            </SectionHeader>
+            <Typography variant="body1" color="text.primary">
+                The <b>Prompt Navigator</b> showcases <b>out-of-sample</b> context from the fine-tuning data used for training. Browse these examples to:
+                <ul style={{ marginTop: 8, marginBottom: 8, marginLeft: 24 }}>
+                    <li>Get a feel for Cypher syntax and how Neo4j queries are structured</li>
+                    <li>Quickly copy a sample prompt to use for model demonstration</li>
+                    <li>Experiment by providing your own prompt in the text area</li>
+                </ul>
+                You can copy any provided example directly to the prompt input, or write your own for custom model results!
+            </Typography>
+        </Stack>
+    </Paper>
+);
+
+// --- MAIN PAGE ---
 
 const Page = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -267,28 +320,30 @@ const Page = () => {
 
     return (
         <Box sx={{ width: '100%', height: 'calc(100vh - 65px)', p: 2, bgcolor: 'background.default', overflow: 'hidden' }}>
-            <Grid container spacing = {2} sx = {{ height: '100%' }}>
-                <Grid item xs = {12} md = {5} sx = {{ height: '100%' }}>
+            <Grid container spacing={2} sx={{ height: '100%' }}>
+                <Grid item xs={12} md={5} sx={{ height: '100%' }}>
                     <Stack spacing={2} sx={{ height: '100%', overflowY: 'auto', pr: 1 }}>
                         <EnhancedFineTuningCard />
-                        <ModelPerformance />
-                        <FineTunedPerformance />
+                        <Neo4jCypherInfoCard />
+                        <CypherSyntaxQuickstartCard />
+                        <PromptNavigatorInfoCard />
                         <CsvReader csvUrl="https://raw.githubusercontent.com/doctorofdata/datadoctorpublic/main/public/data/prompts.csv"/>
                     </Stack>
                 </Grid>
-                <Grid item xs = {12} md = {7} sx = {{ height: '100%' }}>
-                    <Stack spacing = {2} sx = {{ height: '100%', overflowY: 'auto', pr: 1 }}>
-                    <QueryPanel onQuerySubmit = {handleQuerySubmit} isLoading={isLoading} />
-                    <BaseCypherOutputPanel
-                        cypherQuery = {cypherQuery}
-                        onExecute = {handleExecuteQuery}
-                        onExport = {handleExportQuery}
-                    />
-                    <FineTunedCypherOutputPanel
-                        cypherQuery = {cypherQuery}
-                        onExecute = {handleExecuteQuery}
-                        onExport = {handleExportQuery}
-                    /></Stack>
+                <Grid item xs={12} md={7} sx={{ height: '100%' }}>
+                    <Stack spacing={2} sx={{ height: '100%', overflowY: 'auto', pr: 1 }}>
+                        <QueryPanel onQuerySubmit={handleQuerySubmit} isLoading={isLoading} />
+                        <BaseCypherOutputPanel
+                            cypherQuery={cypherQuery}
+                            onExecute={handleExecuteQuery}
+                            onExport={handleExportQuery}
+                        />
+                        <FineTunedCypherOutputPanel
+                            cypherQuery={cypherQuery}
+                            onExecute={handleExecuteQuery}
+                            onExport={handleExportQuery}
+                        />
+                    </Stack>
                 </Grid>
             </Grid>
         </Box>
