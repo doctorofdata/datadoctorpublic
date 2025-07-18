@@ -288,19 +288,35 @@ const PromptNavigatorInfoCard = () => (
 
 // --- MAIN PAGE ---
 
+const API_URL = "https://xb48gamgjg.execute-api.us-east-1.amazonaws.com/prod/v1/fine-tuned-model";
+
 const Page = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [cypherQuery, setCypherQuery] = useState('');
     const [executionResult, setExecutionResult] = useState(null);
+    const [error, setError] = useState('');
 
-    const handleQuerySubmit = (query) => {
+    // --- UPDATED: Real API call ---
+    const handleQuerySubmit = async (query) => {
         setIsLoading(true);
         setCypherQuery('');
-        setTimeout(() => {
-            const mockQuery = `MATCH (u:User)-[:PURCHASED]->(p:Product)\nWHERE u.name CONTAINS '${query.split(' ').pop()}'\nRETURN u.name, p.name, p.price`;
-            setCypherQuery(mockQuery);
-            setIsLoading(false);
-        }, 2000);
+        setError('');
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: query }),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setCypherQuery(data.result); // show result from lambda
+            } else {
+                setError(data.error || "Unknown error");
+            }
+        } catch (err) {
+            setError(err.message || "Network error");
+        }
+        setIsLoading(false);
     };
 
     const handleExecuteQuery = (query) => {
@@ -343,6 +359,11 @@ const Page = () => {
                             onExecute={handleExecuteQuery}
                             onExport={handleExportQuery}
                         />
+                        {error && (
+                            <Alert severity="error" sx={{ mt: 2 }}>
+                                {error}
+                            </Alert>
+                        )}
                     </Stack>
                 </Grid>
             </Grid>

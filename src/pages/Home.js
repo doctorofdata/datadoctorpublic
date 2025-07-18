@@ -458,7 +458,7 @@ const Page = () => {
     },
     {
       title: 'Fraud Detection Pipeline',
-      description: 'Real-time fraud detection for delivery services',
+      description: 'Real-time threat detection for delivery services',
       icon: <SecurityIcon sx={{ color: '#fff' }} />,
       tech: ['AWS', 'Machine Learning', 'Pipeline']
     }

@@ -28,7 +28,7 @@ def strip_html_tags(text):
 
 today = date.today()
 dt = today.strftime('%Y-%m-%d')
-eighteen_months_ago = today - relativedelta(months=18)
+eighteen_months_ago = today - relativedelta(months = 18)
 
 genai.configure(api_key = credentials['gemini_api_key'])
 gemini = genai.GenerativeModel('gemini-2.5-flash')
