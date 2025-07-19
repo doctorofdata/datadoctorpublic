@@ -17,7 +17,7 @@ import { callStockData } from '../hooks/callStockData';
 import { callFetchNews } from '../hooks/callNews';
 import { ENDPOINTS } from '../config/api-config';
 
-const ParentComponent = ({ onTickersChange }) => {
+const ParentComponent = ({ onTickersChange, setFormattedPrompt, onStockPrices }) => {
     const [data, setData] = useState(null);
     const [chartPrices, setChartPrices] = useState([]);
     const [stockPrices, setStockPrices] = useState([]);
@@ -96,6 +96,13 @@ const ParentComponent = ({ onTickersChange }) => {
         }
     }, [currentTickers, onTickersChange]);
 
+    useEffect(() => {
+        // Pass price objects up to FinanceView
+        if (onStockPrices) {
+            onStockPrices(stockPrices || []);
+        }
+    }, [stockPrices, onStockPrices]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!tickers.trim()) return;
@@ -122,8 +129,10 @@ const ParentComponent = ({ onTickersChange }) => {
                     setChartPrices(result.out);
                     if (result.prices && Array.isArray(result.prices)) {
                         setStockPrices(result.prices);
+                        if (onStockPrices) onStockPrices(result.prices); // <-- pass up
                     } else {
                         setStockPrices([]);
+                        if (onStockPrices) onStockPrices([]);
                     }
                 } else if (result.body) {
                     let bodyData = typeof result.body === 'string' ? JSON.parse(result.body) : result.body;
@@ -132,21 +141,29 @@ const ParentComponent = ({ onTickersChange }) => {
                         setChartPrices(bodyData.out);
                         if (bodyData.prices && Array.isArray(bodyData.prices)) {
                             setStockPrices(bodyData.prices);
+                            if (onStockPrices) onStockPrices(bodyData.prices);
+                        } else {
+                            setStockPrices([]);
+                            if (onStockPrices) onStockPrices([]);
                         }
                     } else if (Array.isArray(bodyData)) {
                         setData({ out: bodyData });
                         setChartPrices(bodyData);
+                        setStockPrices([]);
+                        if (onStockPrices) onStockPrices([]);
                     } else {
                         setError("Received data in unexpected format");
                         setData(null);
                         setChartPrices([]);
                         setStockPrices([]);
+                        if (onStockPrices) onStockPrices([]);
                     }
                 } else {
                     setError("No data received from server");
                     setData(null);
                     setChartPrices([]);
                     setStockPrices([]);
+                    if (onStockPrices) onStockPrices([]);
                 }
                 setCurrentTickers(tickerArray);
                 setConnectionStatus('connected');
@@ -155,6 +172,7 @@ const ParentComponent = ({ onTickersChange }) => {
                 setData(null);
                 setChartPrices([]);
                 setStockPrices([]);
+                if (onStockPrices) onStockPrices([]);
             }
         } catch (error) {
             setError(error.message || 'Failed to fetch data. Please try again.');
@@ -162,6 +180,7 @@ const ParentComponent = ({ onTickersChange }) => {
             setData(null);
             setChartPrices([]);
             setStockPrices([]);
+            if (onStockPrices) onStockPrices([]);
         } finally {
             setLoading(false);
         }

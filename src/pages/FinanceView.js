@@ -9,8 +9,40 @@ import ParentComponent from './ParentComponent';
 import NewsWidget from './NewsWidget';
 import AIChat from './AIChat';
 import PromptFormatting from './PromptFormatting';
-import StockTicker from './StockTicker';
 import { ENDPOINTS, USE_AWS_BACKEND } from '../config/api-config';
+import VolatilityChart from './volatilityChart';
+import SharpeRatioChart from './sharpeRatio';
+import RiskMetricsWidget from './RiskMetricsWidget';
+
+// Utility Functions for Metrics
+function getPriceHistoryFromPriceObjects(pricesArray) {
+    const result = {};
+    pricesArray.forEach(item => {
+        const ticker = item.ticker || item.symbol || item.Symbol;
+        if (!ticker) return;
+        const price = item.Close ?? item.close ?? item.price;
+        if (typeof price !== 'number' || isNaN(price)) return;
+        if (!result[ticker]) result[ticker] = [];
+        result[ticker].push(price);
+    });
+    return result;
+}
+function calculateReturns(prices) {
+    if (!prices || prices.length < 2) return [];
+    return prices.slice(1).map((p, i) => (p - prices[i]) / prices[i]);
+}
+function calculateVolatility(returns) {
+    if (!returns.length) return 0;
+    const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
+    return Math.sqrt(variance) * Math.sqrt(252);
+}
+function calculateSharpeRatio(returns, riskFreeRate = 0.02) {
+    if (!returns.length) return 0;
+    const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length * 252;
+    const volatility = calculateVolatility(returns);
+    return volatility ? (mean - riskFreeRate) / volatility : 0;
+}
 
 const MAX_NEWS_PER_TICKER = 3;
 
@@ -77,32 +109,9 @@ const darkTheme = createTheme({
             secondary: '#8b949e',
         },
     },
-    typography: {
-        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"'
-    },
-    components: {
-        MuiPaper: {
-            styleOverrides: {
-                root: {
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    backgroundImage: 'none',
-                },
-            },
-        },
-        MuiButton: {
-            styleOverrides: {
-                root: {
-                    borderRadius: 8,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                },
-            },
-        },
-    },
 });
 
 const FinanceView = () => {
-
     const [currentTickers, setCurrentTickers] = useState([]);
     const [response, setResponse] = useState('');
     const [formattedPrompt, setFormattedPrompt] = useState('');
@@ -112,6 +121,7 @@ const FinanceView = () => {
     const [quotes, setQuotes] = useState([]);
     const [quotesError, setQuotesError] = useState('');
     const [newsArticles, setNewsArticles] = useState([]);
+    const [stockPrices, setStockPrices] = useState([]);
 
     useEffect(() => {
         if (!currentTickers.length) return;
@@ -131,6 +141,10 @@ const FinanceView = () => {
 
     const handleTickersChange = (tickers) => {
         setCurrentTickers(tickers);
+    };
+
+    const handleStockPrices = (prices) => {
+        setStockPrices(prices || []);
     };
 
     const handleNewsFetched = (articles) => {
@@ -181,6 +195,21 @@ ${contextLines.join('\n')}
         }
     };
 
+    // === Metrics calculation using price objects from ParentComponent ===
+    const pricesByTicker = getPriceHistoryFromPriceObjects(stockPrices);
+    const metrics = Object.entries(pricesByTicker).map(([ticker, pricesArr]) => {
+        if (!pricesArr || pricesArr.length < 2) return null;
+        const returns = calculateReturns(pricesArr);
+        const volatility = calculateVolatility(returns);
+        const sharpe = calculateSharpeRatio(returns);
+        return {
+            ticker,
+            volatility,
+            sharpe,
+            prices: pricesArr
+        };
+    }).filter(Boolean);
+
     return (
         <ThemeProvider theme={darkTheme}>
             <DashboardFrame
@@ -198,7 +227,20 @@ ${contextLines.join('\n')}
                     >
                         <Grid container spacing={3}>
                             <Grid item xs={12}>
-                                <ParentComponent onTickersChange={handleTickersChange} setFormattedPrompt={setFormattedPrompt} />
+                                <ParentComponent 
+                                    onTickersChange={handleTickersChange} 
+                                    setFormattedPrompt={setFormattedPrompt}
+                                    onStockPrices={handleStockPrices}
+                                />
+                            </Grid>
+                            <Grid item xs = {12}>
+                                <RiskMetricsWidget metrics = {metrics}/>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <VolatilityChart metrics={metrics} />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <SharpeRatioChart metrics={metrics} />
                             </Grid>
                             <Grid item xs={12}>
                                 <NewsWidget tickers={currentTickers} onNewsFetched={handleNewsFetched} />
@@ -212,7 +254,8 @@ ${contextLines.join('\n')}
                                     expanded={expanded}
                                     setExpanded={setExpanded}
                                 />
-                                <PromptFormatting prompt={formattedPrompt} />
+                                {/* Pass metricsData to PromptFormatting for model input context */}
+                                <PromptFormatting prompt={formattedPrompt} metricsData={metrics.map(m => ({ ticker: m.ticker, prices: m.prices }))} />
                             </Grid>
                         </Grid>
                     </Box>
