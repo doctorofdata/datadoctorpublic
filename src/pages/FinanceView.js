@@ -13,6 +13,7 @@ import { ENDPOINTS, USE_AWS_BACKEND } from '../config/api-config';
 import VolatilityChart from './volatilityChart';
 import SharpeRatioChart from './sharpeRatio';
 import RiskMetricsWidget from './RiskMetricsWidget';
+import ModelInsightsTab from './ModelInsightsTab';
 
 // Utility Functions for Metrics
 function getPriceHistoryFromPriceObjects(pricesArray) {
@@ -243,22 +244,21 @@ ${contextLines.join('\n')}
                                 <SharpeRatioChart metrics={metrics} />
                             </Grid>
                             <Grid item xs={12}>
-                                <NewsWidget tickers={currentTickers} onNewsFetched={handleNewsFetched} />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <AIChat
+                               <ModelInsightsTab
                                     onAskAI={handleAskAI}
                                     response={response}
                                     loading={loading}
                                     error={error}
                                     expanded={expanded}
                                     setExpanded={setExpanded}
-                                />
-                                {/* Pass metricsData to PromptFormatting for model input context */}
-                                <PromptFormatting prompt={formattedPrompt} metricsData={metrics.map(m => ({ ticker: m.ticker, prices: m.prices }))} />
-                            </Grid>
+                                    prompt={formattedPrompt}
+                                    tickers={currentTickers}
+                                    onNewsFetched={handleNewsFetched}
+                                    />
                         </Grid>
-                    </Box>
+
+                    </Grid>
+                       </Box>
                 }
             />
         </ThemeProvider>
