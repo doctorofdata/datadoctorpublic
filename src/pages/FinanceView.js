@@ -14,6 +14,28 @@ import VolatilityChart from './volatilityChart';
 import SharpeRatioChart from './sharpeRatio';
 import RiskMetricsWidget from './RiskMetricsWidget';
 import ModelInsightsTab from './ModelInsightsTab';
+import { styled } from '@mui/material/styles';
+
+const HeroImageSection = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  height: '40vh', // Change height as you prefer
+  overflow: 'hidden',
+  width: '100%',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundImage: 'url("/cityscape.png")', // <-- Use your image in public folder
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    filter: 'brightness(0.8) contrast(1.2)',
+    zIndex: 1,
+  },
+}));
 
 // Utility Functions for Metrics
 function getPriceHistoryFromPriceObjects(pricesArray) {
@@ -45,9 +67,9 @@ function calculateSharpeRatio(returns, riskFreeRate = 0.02) {
     return volatility ? (mean - riskFreeRate) / volatility : 0;
 }
 
-const MAX_NEWS_PER_TICKER = 3;
+const MAX_NEWS_PER_TICKER = 8;
 
-function groupAndLimitArticles(articles, maxPerTicker = 3) {
+function groupAndLimitArticles(articles, maxPerTicker = 8) {
     const grouped = {};
     for (const article of articles) {
         let symbol = article.symbol;
@@ -158,7 +180,7 @@ const FinanceView = () => {
             `- ${article.title} (${article.symbol || ''}, ${article.publishedDate || article.date || ''}): ${article.text || ''}`
         );
         const prompt =
-`You are an expert financial assistant being asked to evaluate the user's portfolio: ${currentTickers.join(', ')}.
+`You are an expert financial assistant being asked to evaluate the user's portfolio: ${currentTickers.join(', ')}
 Here is some recent news media to provide context:
 ${contextLines.join('\n')}
 `;
@@ -226,6 +248,9 @@ ${contextLines.join('\n')}
                             gap: 2,
                         }}
                     >
+                            <Grid item xs={12}>
+                                <HeroImageSection />
+                            </Grid>
                         <Grid container spacing={3}>
                             <Grid item xs={12}>
                                 <ParentComponent 

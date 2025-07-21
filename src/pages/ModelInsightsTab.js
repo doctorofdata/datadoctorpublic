@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -6,33 +6,46 @@ import {
   Tabs,
   Tab,
   Button,
-  CircularProgress
+  CircularProgress,
+  TextField,
+  Divider,
+  Avatar
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import AIResponse from './AIResponse';
 import NewsWidget from './NewsWidget';
+import AIResponse from './AIResponse';
+import { GiRobotGolem } from "react-icons/gi";
+import PersonIcon from '@mui/icons-material/Person';
+
+const sendMessage = async (prompt) => {
+  const endpoint = "https://xb48gamgjg.execute-api.us-east-1.amazonaws.com/v1/send-message";
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, contextArticles: [] }) // <-- THIS IS THE FIX
+  });
+  if (!response.ok) throw new Error(`Failed to send message: ${response.status}`);
+  const data = await response.json();
+  if (typeof data.body === 'string') {
+    try {
+      return JSON.parse(data.body);
+    } catch (e) {
+      return { status: "error", message: "Failed to parse response body" };
+    }
+  }
+  if (typeof data.body === 'object') {
+    return data.body;
+  }
+  return data;
+};
 
 const TAB = {
   INSIGHTS: 0,
-  RESPONSE: 1,
-  PROMPT: 2,
-  NEWS: 3
+  PROMPT: 1,
+  NEWS: 2,
+  CHAT: 3
 };
 
-/**
- * Props:
- *  - onAskAI: function
- *  - response: string
- *  - loading: boolean
- *  - error: string
- *  - expanded: boolean
- *  - setExpanded: function
- *  - prompt: string
- *  - tickers: array of current tickers
- *  - onNewsFetched: function
- */
 const ModelInsightsTabs = ({
   onAskAI,
   response,
@@ -44,33 +57,68 @@ const ModelInsightsTabs = ({
   tickers,
   onNewsFetched
 }) => {
-  // If response or error exists, default to MODEL RESPONSE, else default to Insights tab
-  const initialTab = response || error ? TAB.RESPONSE : TAB.INSIGHTS;
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState(TAB.INSIGHTS);
 
-  // If props change, ensure tab updates only if the response/error has just arrived
-  React.useEffect(() => {
-    if ((response || error) && tab === TAB.INSIGHTS) {
-      setTab(TAB.RESPONSE);
+  // --- AI Chat tab state ---
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const handleSendChatMessage = async () => {
+    const trimmedInput = chatInput.trim();
+    if (!trimmedInput) return;
+
+    setChatMessages(prev => [...prev, { role: 'user', content: trimmedInput }]);
+    setChatLoading(true);
+
+    try {
+      const result = await sendMessage(trimmedInput);
+      console.log("sendMessage result:", result);
+      if (result.status === 'success') {
+        setChatMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: result.response }
+        ]);
+      } else {
+        setChatMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: result.message || "AI call failed",
+            error: true
+          }
+        ]);
+      }
+    } catch (error) {
+      setChatMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Failed to get AI response. Please try again.',
+          error: true
+        }
+      ]);
+    } finally {
+      setChatLoading(false);
+      setChatInput('');
     }
-    if (!response && !error && tab === TAB.RESPONSE) {
-      setTab(TAB.INSIGHTS);
-    }
-  // eslint-disable-next-line
-  }, [response, error]);
+  };
 
   return (
     <Box sx={{ width: '100%', my: 2 }}>
-      <Paper
-        sx={{
-          p: 0,
-          bgcolor: 'background.paper',
-          border: 1,
-          borderColor: 'divider',
-          boxShadow: 'none',
-          borderRadius: 1,
-        }}
-      >
+      <Paper sx={{
+        p: 0,
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
+        boxShadow: 'none',
+        borderRadius: 1,
+      }}>
         <Tabs
           value={tab}
           onChange={(_, v) => setTab(v)}
@@ -80,9 +128,9 @@ const ModelInsightsTabs = ({
           sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}
         >
           <Tab label="Portfolio Insights w/ Gemini" />
-          <Tab label="Model Response" disabled={!response && !error} />
           <Tab label="Model Input Preview" disabled={!prompt || !prompt.trim()} />
           <Tab label="News & Media" />
+          <Tab label="AI Chat" />
         </Tabs>
         {/* Portfolio Insights Tab */}
         {tab === TAB.INSIGHTS && (
@@ -111,43 +159,40 @@ const ModelInsightsTabs = ({
             >
               {loading ? 'Thinking...' : 'Ask AI'}
             </Button>
-          </Box>
-        )}
-
-        {/* Model Response Tab */}
-        {tab === TAB.RESPONSE && (response || error) && (
-          <Box sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-              <Button
-                onClick={() => setExpanded(!expanded)}
-                size="small"
-                variant="outlined"
-                startIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 500
-                }}
-              >
-                {expanded ? "Hide Response" : "Show Response"}
-              </Button>
-            </Box>
-            {expanded && (
-              <>
-                {error && (
-                  <Paper sx={{
-                    p: 2,
-                    mb: 3,
-                    bgcolor: '#ffdce0',
-                    border: 1,
-                    borderColor: '#cb2431',
-                    boxShadow: 'none',
-                    borderRadius: 1
-                  }}>
-                    <Typography color="error">{error}</Typography>
-                  </Paper>
+            {(response || error) && (
+              <Box sx={{ width: '100%', mt: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                  <Button
+                    onClick={() => setExpanded(!expanded)}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 500
+                    }}
+                  >
+                    {expanded ? "Hide Response" : "Show Response"}
+                  </Button>
+                </Box>
+                {expanded && (
+                  <>
+                    {error && (
+                      <Paper sx={{
+                        p: 2,
+                        mb: 3,
+                        bgcolor: '#ffdce0',
+                        border: 1,
+                        borderColor: '#cb2431',
+                        boxShadow: 'none',
+                        borderRadius: 1
+                      }}>
+                        <Typography color="error">{error}</Typography>
+                      </Paper>
+                    )}
+                    {response && <AIResponse response={response} />}
+                  </>
                 )}
-                {response && <AIResponse response={response} />}
-              </>
+              </Box>
             )}
           </Box>
         )}
@@ -183,6 +228,125 @@ const ModelInsightsTabs = ({
               News Media
             </Typography>
             <NewsWidget tickers={tickers} onNewsFetched={onNewsFetched} />
+          </Box>
+        )}
+
+        {/* AI Chat Tab */}
+        {tab === TAB.CHAT && (
+          <Box sx={{ p: 3, width: '100%', height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Financial Chat
+            </Typography>
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              minHeight: 350,
+              bgcolor: 'background.default',
+              borderRadius: 0,
+              p: 2,
+              border: 0,
+              width: '100%',
+              height: '100%'
+            }}>
+              {/* Chat history */}
+              <Box sx={{ flex: 1, overflowY: 'auto', mb: 1, width: '100%' }}>
+                {chatMessages.length === 0 && (
+                  <Typography color="text.secondary" sx={{ textAlign: 'center', mt: 6 }}>
+                    Start the conversation by typing your question below.
+                  </Typography>
+                )}
+                {chatMessages.map((msg, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      mb: 2,
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 1
+                    }}
+                  >
+                    <Avatar sx={{
+                      bgcolor: msg.role === 'user' ? 'primary.main' : 'secondary.main',
+                      width: 32, height: 32, mt: 0.5
+                    }}>
+                      {msg.role === 'user'
+                        ? <PersonIcon />
+                        : <GiRobotGolem style={{
+                            color: 'var(--mui-palette-primary-main)',
+                            width: 28,
+                            height: 28
+                          }} />
+                      }
+                    </Avatar>
+                    <Paper sx={{
+                      p: 2,
+                      bgcolor: msg.role === 'user'
+                        ? 'primary.main'
+                        : msg.error
+                          ? '#ffdce0'
+                          : 'background.paper',
+                      color: msg.role === 'user'
+                        ? 'primary.contrastText'
+                        : msg.error
+                          ? '#cb2431'
+                          : 'text.primary',
+                      borderRadius: 2,
+                      mb: 0.5,
+                      boxShadow: 'none',
+                      fontSize: '1em',
+                      minWidth: 60,
+                      flex: 1
+                    }}>
+                      <Typography variant="body2" sx={{ wordBreak: 'break-word', mb: 0 }}>
+                        {msg.content}
+                      </Typography>
+                    </Paper>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        textAlign: 'left',
+                        display: 'block',
+                        fontStyle: 'italic',
+                        ml: 1,
+                        mt: 2
+                      }}
+                    >
+                      {msg.role === 'user' ? 'You' : 'AI'}
+                    </Typography>
+                  </Box>
+                ))}
+                <div ref={chatEndRef} />
+              </Box>
+              <Divider sx={{ my: 1 }} />
+              {/* Chat input and send button */}
+              <Box sx={{ display: 'flex', gap: 1, width: '100%' }}>
+                <TextField
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  placeholder="Type your question here"
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  disabled={chatLoading}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !chatLoading) handleSendChatMessage();
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={ () => {handleSendChatMessage()}}
+                  disabled={chatLoading || !chatInput.trim()}
+                  endIcon={chatLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+                  sx={{ minWidth: 90, fontWeight: 600 }}
+                >
+                  {chatLoading ? 'Sending...' : 'Send'}
+                </Button>
+              </Box>
+            </Box>
           </Box>
         )}
       </Paper>

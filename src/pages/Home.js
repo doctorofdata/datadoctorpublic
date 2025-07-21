@@ -74,7 +74,7 @@ const HeroImageSection = styled(Box)(({ theme }) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundImage: 'url("https://interestingengineering.com/_next/image?url=https%3A%2F%2Fimages.interestingengineering.com%2F2023%2F12%2F17%2Fimage%2Fjpeg%2FvuPe0eeWZY8i7TszVtG2RMMRLw14TK95viZVkOkX.jpg&w=1200&q=75")',
+    backgroundImage: 'url(/aiplatinumera.png)',
     backgroundSize: '100% auto', // Stretch width to 100%, height auto-scales
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',

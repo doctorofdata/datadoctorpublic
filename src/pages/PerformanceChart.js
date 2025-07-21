@@ -54,6 +54,7 @@ const formatDate = (dateString) => {
 };
 
 const PerformanceChart = ({ stockData }) => {
+
     console.log("PerformanceChart received data:", stockData);
     
     // Handle various data structures
@@ -74,7 +75,7 @@ const PerformanceChart = ({ stockData }) => {
     
     // Debug what fields are available
     console.log("First data point:", dataForChart[0]);
-    console.log("Sample data points:", dataForChart.slice(0, 3));
+    console.log("More data points:", dataForChart.slice(0, 3));
     
     // Check if data contains required fields (case insensitive)
     const hasDate = dataForChart[0].Date || dataForChart[0].date;

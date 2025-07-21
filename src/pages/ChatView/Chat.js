@@ -46,6 +46,7 @@ function limitArticlesPerTicker(articles, maxPerTicker) {
 }
 
 const Chat = ({ fetchNews, sendMessage, rerankEmbed, crossEncode, setContextArticles }) => {
+  
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
