@@ -16,28 +16,9 @@ import NewsWidget from './NewsWidget';
 import AIResponse from './AIResponse';
 import { GiRobotGolem } from "react-icons/gi";
 import PersonIcon from '@mui/icons-material/Person';
+import ReactMarkdown from 'react-markdown'; // <-- ADD THIS IMPORT
 
-const sendMessage = async (prompt) => {
-  const endpoint = "https://xb48gamgjg.execute-api.us-east-1.amazonaws.com/v1/send-message";
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, contextArticles: [] }) // <-- THIS IS THE FIX
-  });
-  if (!response.ok) throw new Error(`Failed to send message: ${response.status}`);
-  const data = await response.json();
-  if (typeof data.body === 'string') {
-    try {
-      return JSON.parse(data.body);
-    } catch (e) {
-      return { status: "error", message: "Failed to parse response body" };
-    }
-  }
-  if (typeof data.body === 'object') {
-    return data.body;
-  }
-  return data;
-};
+const API_URL = "https://xb48gamgjg.execute-api.us-east-1.amazonaws.com/prod/v1/ai-chat";
 
 const TAB = {
   INSIGHTS: 0,
@@ -45,6 +26,12 @@ const TAB = {
   NEWS: 2,
   CHAT: 3
 };
+
+// Utility: convert plain text to markdown (paragraphs, lists, etc.)
+function formatAsMarkdown(text) {
+    if (!text) return "";
+    return text; // use plain markdown, or customize for code blocks/lists
+}
 
 const ModelInsightsTabs = ({
   onAskAI,
@@ -63,33 +50,54 @@ const ModelInsightsTabs = ({
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
+  const [chatError, setChatError] = useState('');
   const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
+  // Direct API call from inside the component
   const handleSendChatMessage = async () => {
     const trimmedInput = chatInput.trim();
     if (!trimmedInput) return;
 
     setChatMessages(prev => [...prev, { role: 'user', content: trimmedInput }]);
     setChatLoading(true);
+    setChatError('');
 
     try {
-      const result = await sendMessage(trimmedInput);
-      console.log("sendMessage result:", result);
-      if (result.status === 'success') {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: trimmedInput, contextArticles: [] })
+      });
+      if (!response.ok) throw new Error(`Failed to send message: ${response.status}`);
+      const data = await response.json();
+
+      // Handle stringified or object body
+      let parsed = data;
+      if (typeof data.body === 'string') {
+        try {
+          parsed = JSON.parse(data.body);
+        } catch (e) {
+          parsed = { status: "error", message: "Failed to parse response body" };
+        }
+      } else if (typeof data.body === 'object') {
+        parsed = data.body;
+      }
+
+      if (parsed.status === 'success') {
         setChatMessages(prev => [
           ...prev,
-          { role: 'assistant', content: result.response }
+          { role: 'assistant', content: parsed.response }
         ]);
       } else {
         setChatMessages(prev => [
           ...prev,
           {
             role: 'assistant',
-            content: result.message || "AI call failed",
+            content: parsed.message || "AI call failed",
             error: true
           }
         ]);
@@ -103,6 +111,7 @@ const ModelInsightsTabs = ({
           error: true
         }
       ]);
+      setChatError(error.message || 'Network error');
     } finally {
       setChatLoading(false);
       setChatInput('');
@@ -299,9 +308,19 @@ const ModelInsightsTabs = ({
                       minWidth: 60,
                       flex: 1
                     }}>
-                      <Typography variant="body2" sx={{ wordBreak: 'break-word', mb: 0 }}>
-                        {msg.content}
-                      </Typography>
+                      {/* 
+                        --- CHANGE BELOW ---
+                        Render markdown for assistant responses
+                      */}
+                      {msg.role === 'assistant' && !msg.error ? (
+                        <ReactMarkdown>
+                          {formatAsMarkdown(msg.content)}
+                        </ReactMarkdown>
+                      ) : (
+                        <Typography variant="body2" sx={{ wordBreak: 'break-word', mb: 0 }}>
+                          {msg.content}
+                        </Typography>
+                      )}
                     </Paper>
                     <Typography
                       variant="caption"
@@ -338,7 +357,7 @@ const ModelInsightsTabs = ({
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={ () => {handleSendChatMessage()}}
+                  onClick={handleSendChatMessage}
                   disabled={chatLoading || !chatInput.trim()}
                   endIcon={chatLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
                   sx={{ minWidth: 90, fontWeight: 600 }}
@@ -346,6 +365,11 @@ const ModelInsightsTabs = ({
                   {chatLoading ? 'Sending...' : 'Send'}
                 </Button>
               </Box>
+              {chatError && (
+                <Typography color="error" sx={{ mt: 1 }}>
+                  {chatError}
+                </Typography>
+              )}
             </Box>
           </Box>
         )}

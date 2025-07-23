@@ -18,6 +18,7 @@ const lookingForwardImages = [
   { src: "/ai0.png", alt: "The synergy of man and computer" },
   { src: "/ai1.png", alt: "An explosion of synergy" },
   { src: "/ai2.png", alt: "A cyberpunkt work marathong" },
+  { src: "/ai3.png", alt: "An electrified llm agent" },
   { src: "/blogBanner.png", alt: "A cityscape of the future" },
   { src: "/aiplatinumera.png", alt: "Refactored stock imagery"},
   { src: "/cityscape.png", alt: "Text to image editing of stock photography" },
