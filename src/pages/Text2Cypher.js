@@ -194,6 +194,34 @@ const EnhancedFineTuningCard = () => (
             </Box>
             <Chip icon={<CheckIcon />} label="Active" color="success" size="small" />
         </Stack>
+        {/* --- New: Colab Notebook Widget --- */}
+        <Box sx={{ mt: 2 }}>
+            <Button
+                variant="outlined"
+                color="secondary"
+                startIcon={
+                    <img
+                        src="https://colab.research.google.com/assets/colab-badge.svg"
+                        alt="Open in Colab"
+                        style={{ height: 20 }}
+                    />
+                }
+                href="https://colab.research.google.com/drive/1QeHxsbNnHnTWNDCSz7iphUORB--FBeAA?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    borderRadius: 3,
+                    px: 2,
+                    py: 1,
+                    mt: 1,
+                    bgcolor: 'rgba(140,124,240,0.08)',
+                }}
+            >
+                (Requires High-RAM GPU)
+            </Button>
+        </Box>
     </Paper>
 );
 
