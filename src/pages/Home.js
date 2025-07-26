@@ -678,7 +678,30 @@ const Page = () => {
                   </Typography>
                 </AccordionDetails>
               </StyledAccordion>
+
+                          <StyledAccordion 
+                expanded={expandedPanel === 'toyota'} 
+                onChange={handleAccordionChange('toyota')}
+              >
+                <StyledAccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#ffffff' }} />}>
+                  <CompanyLogo 
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLGZD79JubhYOL-PUDcIwi3nen3KK4l8od_Q&s" 
+                    alt="Toyota"
+                  />
+                  <Box>
+                    <JobTitle>Data Scientist</JobTitle>
+                    <JobDate>May 2018 - November 2019</JobDate>
+                  </Box>
+                </StyledAccordionSummary>
+                <AccordionDetails sx={{ backgroundColor: 'rgba(0,0,0,0.5)', borderTop: '1px solid #333' }}>
+                  <Typography variant="body2" sx={{ color: '#ccc', lineHeight: 1.6 }}>
+                    • Created production models to forecast rates of attrition and predict employee churn<br/>
+                    • Conducted advanced NLP analysis and visualization on applicant resumes from the Toyota portal to inspect and understand hiring patterns and causal factors benefiting cultural fit<br/>
+                  </Typography>
+                </AccordionDetails>
+              </StyledAccordion>
             </ContentSection>
+
           </Grid>
         </Grid>
 

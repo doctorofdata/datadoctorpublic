@@ -28,7 +28,7 @@ const HeroImageSection = styled(Box)(({ theme }) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundImage: 'url("/cityscape.png")', // <-- Use your image in public folder
+    backgroundImage: 'url("/ai5.png")', // <-- Use your image in public folder
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
