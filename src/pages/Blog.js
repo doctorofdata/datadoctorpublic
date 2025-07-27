@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Container,
@@ -6,20 +6,20 @@ import {
   Link as MuiLink,
   Tooltip,
   useTheme,
+  Modal,
 } from '@mui/material';
 import DashboardFrame from 'components/DashboardFrame';
 import IframeComponent from '../components/IframeComponent';
-import Slider from "react-slick";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
 
-// Carousel images for "Looking forward!"
+// Tapestry images for "Looking forward!"
 const lookingForwardImages = [
   { src: "/ai0.png", alt: "The synergy of man and computer" },
   { src: "/ai1.png", alt: "An explosion of synergy" },
-  { src: "/ai2.png", alt: "A cyberpunkt work marathong" },
+  { src: "/ai2.png", alt: "A cyberpunk work marathon" },
   { src: "/ai3.png", alt: "An electrified llm agent" },
   { src: "/ai4.png", alt: "The new brain-computer interface"},
+  { src: "/ai6.png", alt: "Technology bridging communication gaps worldwide"},
+  { src: "/ai7.jpg", alt: "Adobe firefly spreading its wings in flight"},
   { src: "/blogBanner.png", alt: "A cityscape of the future" },
   { src: "/aiplatinumera.png", alt: "Refactored stock imagery"},
   { src: "/cityscape.png", alt: "Text to image editing of stock photography" },
@@ -167,37 +167,36 @@ const TableOfContents = ({ posts }) => {
   );
 };
 
-const LookingForwardCarouselCard = ({ images, imageHeight }) => {
-  const settings = {
-    dots: true,
-    infinite: true,
-    speed: 400,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    arrows: true,
-    autoplay: false,
-    pauseOnHover: true,
-  };
+// --- Masonry Panel using CSS columns for true masonry ---
+const LookingForwardMasonryPanel = ({ images }) => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalImg, setModalImg] = useState(null);
 
-  const computedHeight = imageHeight || { xs: 360, sm: 500, md: 680, lg: 800, xl: 900 };
+  const handleOpen = img => {
+    setModalImg(img);
+    setModalOpen(true);
+  };
+  const handleClose = () => {
+    setModalOpen(false);
+    setModalImg(null);
+  };
 
   return (
     <Box
-      id={anchorId("Looking forward!")}
-      component="article"
+      id="looking-forward-gallery"
       sx={{
         mb: 4,
         p: 3,
         border: '1px solid #333',
-        borderRadius: '8px',
-        backgroundColor: '#0d1117',
-        borderLeft: '1px solid #333',
+        borderRadius: '12px',
+        background: "linear-gradient(135deg, #161b22 60%, #22282f 100%)",
         position: 'relative',
+        boxShadow: "0 2px 24px 0 rgba(10,10,32,0.12)",
         '&:hover': {
           borderColor: '#555',
-          backgroundColor: '#161b22',
+          background: "linear-gradient(135deg, #161b22 40%, #23272a 100%)",
           transition: 'all 0.2s ease-in-out',
-        }
+        },
       }}
     >
       {/* Terminal-style header */}
@@ -224,8 +223,6 @@ const LookingForwardCarouselCard = ({ images, imageHeight }) => {
           ~/blog/looking_forward.png
         </Typography>
       </Box>
-
-      {/* Title */}
       <Typography
         variant="h5"
         sx={{
@@ -244,49 +241,127 @@ const LookingForwardCarouselCard = ({ images, imageHeight }) => {
       >
         A collection of inspirational text-to-image artwork created by SORA
       </Typography>
-
-      {/* Carousel */}
+      {/* Masonry grid using CSS columns */}
       <Box
         sx={{
-          width: "100%",
-          height: computedHeight,
-          mb: 2,
-          ".slick-slider": { height: "100%" },
-          ".slick-list": { height: "100%" },
-          ".slick-track": { height: "100%" },
-          ".slick-slide > div": { height: "100%" },
+          columnCount: { xs: 2, sm: 3, md: 4, lg: 5 },
+          columnGap: '16px',
+          width: '100%',
         }}
       >
-        <Slider {...settings}>
-          {images.map((img, idx) => (
-            <Box
-              key={img.src}
-              sx={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "#10151c",
-                overflow: "hidden",
-                borderRadius: "6px",
+        {images.map((img, idx) => (
+          <Box
+            key={img.src}
+            sx={{
+              mb: 2,
+              display: 'inline-block',
+              width: '100%',
+              breakInside: 'avoid',
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: '2px solid #23272a',
+              boxShadow: '0 2px 14px 0 rgba(0,0,0,0.07)',
+              background: 'linear-gradient(135deg, #10151c 60%, #23272a 100%)',
+              cursor: 'pointer',
+              transition: 'box-shadow 0.15s, border-color 0.18s',
+              '&:hover': {
+                boxShadow: '0 4px 28px 0 rgba(0,0,0,0.18)',
+                borderColor: '#e91e63',
+                zIndex: 2,
+                '& .hoverOverlay': {
+                  opacity: 1,
+                }
+              }
+            }}
+            onClick={() => handleOpen(img)}
+          >
+            <img
+              src={img.src}
+              alt={img.alt}
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+                borderRadius: 'inherit',
+                background: "#181f2b"
               }}
-            >
+            />
+            <Box className="hoverOverlay" sx={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              width: '100%',
+              bgcolor: 'rgba(33,39,42,0.92)',
+              color: '#fff',
+              p: 1,
+              fontSize: '0.93rem',
+              fontFamily: 'monospace',
+              opacity: 0,
+              pointerEvents: 'none',
+              zIndex: 3,
+              transition: 'opacity 0.19s',
+              textAlign: "center",
+            }}>
+              {img.alt}
+            </Box>
+          </Box>
+        ))}
+      </Box>
+      {/* Modal for expanded image */}
+      <Modal
+        open={modalOpen}
+        onClose={handleClose}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1300,
+        }}
+      >
+        <Box
+          sx={{
+            outline: 'none',
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            bgcolor: '#10151c',
+            boxShadow: 24,
+            p: 2,
+            borderRadius: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          {modalImg && (
+            <>
               <img
-                src={img.src}
-                alt={img.alt || `Slide ${idx + 1}`}
+                src={modalImg.src}
+                alt={modalImg.alt}
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
+                  maxWidth: '80vw',
+                  maxHeight: '80vh',
+                  objectFit: 'contain',
+                  borderRadius: '10px',
                   display: 'block',
-                  background: 'transparent',
+                  background: '#222',
                 }}
               />
-            </Box>
-          ))}
-        </Slider>
-      </Box>
+              <Typography
+                sx={{
+                  color: '#fff',
+                  mt: 2,
+                  fontSize: '1.15rem',
+                  textAlign: 'center',
+                  fontFamily: 'monospace',
+                  opacity: 0.9,
+                }}
+              >
+                {modalImg.alt}
+              </Typography>
+            </>
+          )}
+        </Box>
+      </Modal>
     </Box>
   );
 };
@@ -653,11 +728,8 @@ const Page = () => {
           </Box>
         </Box>
 
-        {/* Looking Forward Carousel Card */}
-        <LookingForwardCarouselCard
-          images={lookingForwardImages}
-          imageHeight={{ xs: 360, sm: 500, md: 680, lg: 800, xl: 900 }}
-        />
+        {/* Looking Forward Masonry Panel */}
+        <LookingForwardMasonryPanel images={lookingForwardImages} />
 
         {/* Blog posts */}
         <Box sx={{ pb: 6 }}>
