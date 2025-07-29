@@ -49,11 +49,11 @@ import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 const darkTheme = createTheme({
     palette: {
         mode: 'dark',
-        primary: { main: '#8c7cf0' }, // A nice purple
-        secondary: { main: '#03a9f4' }, // A vibrant blue
+        primary: { main: '#8c7cf0' },
+        secondary: { main: '#03a9f4' },
         background: {
-            paper: 'rgba(30, 30, 42, 0.7)', // Semi-transparent dark paper
-            default: '#0d1117', // GitHub-like dark background
+            paper: 'rgba(30, 30, 42, 0.7)',
+            default: '#0d1117',
         },
         text: {
             primary: '#e6edf3',
@@ -335,9 +335,20 @@ const Page = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ prompt: query }),
             });
-            const data = await response.json();
-            if (response.ok) {
-                setCypherQuery(data.result); // show result from lambda
+            const lambdaResponse = await response.json();
+            // Parse the Lambda proxy response body if present
+            let data;
+            if (typeof lambdaResponse.body === "string") {
+                try {
+                    data = JSON.parse(lambdaResponse.body);
+                } catch {
+                    data = { error: "Malformed backend response" };
+                }
+            } else {
+                data = lambdaResponse;
+            }
+            if (response.ok && !data.error) {
+                setCypherQuery(data.result);
             } else {
                 setError(data.error || "Unknown error");
             }
@@ -378,11 +389,6 @@ const Page = () => {
                     <Stack spacing={2} sx={{ height: '100%', overflowY: 'auto', pr: 1 }}>
                         <QueryPanel onQuerySubmit={handleQuerySubmit} isLoading={isLoading} />
                         <BaseCypherOutputPanel
-                            cypherQuery={cypherQuery}
-                            onExecute={handleExecuteQuery}
-                            onExport={handleExportQuery}
-                        />
-                        <FineTunedCypherOutputPanel
                             cypherQuery={cypherQuery}
                             onExecute={handleExecuteQuery}
                             onExport={handleExportQuery}
