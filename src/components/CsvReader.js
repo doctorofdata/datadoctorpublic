@@ -88,6 +88,7 @@ const copyToClipboard = async (text) => {
 };
 
 const CsvReader = ({ csvUrl = '/data/prompts.csv' }) => {
+    
     const { rows, error, loading } = useCsvRows(csvUrl);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [copied, setCopied] = useState(false);
