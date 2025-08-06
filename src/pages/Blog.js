@@ -20,6 +20,7 @@ const lookingForwardImages = [
   { src: "/ai4.png", alt: "The new brain-computer interface"},
   { src: "/ai6.png", alt: "Technology bridging communication gaps worldwide"},
   { src: "/ai7.jpg", alt: "Adobe firefly spreading its wings in flight"},
+  { src: "/ai9.png", alt: "Man and machine interfacing through technology"},
   { src: "/blogBanner.png", alt: "A cityscape of the future" },
   { src: "/aiplatinumera.png", alt: "Refactored stock imagery"},
   { src: "/cityscape.png", alt: "Text to image editing of stock photography" },
